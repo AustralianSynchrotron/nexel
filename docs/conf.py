@@ -95,6 +95,9 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 html_theme = 'default'
 
+# Set this so that readthedocs doesn't much around with the sphinx_http_domain styling
+html_style = '/default.css'
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
