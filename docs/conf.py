@@ -43,7 +43,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Nexel'
-copyright = u'2013, Jarrod Sinclair'
+copyright = u'2013, Synchrotron Light Source Australia Pty Ltd'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
