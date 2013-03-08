@@ -29,7 +29,6 @@ import os
 
 from distutils.core import setup
 
-
 with open('README.md', 'r') as f:
     long_description = f.read()
 
@@ -41,15 +40,15 @@ setup(
     url='https://github.com/AustralianSynchrotron/nexel',
     author='Jarrod Sinclair',
     author_email='jsinclair@vpac.org',
-    packages=['nexel'],
-    requires=[
-        'Tornado (>= 2.4.1)',
-        'Paramiko (>= 1.9.0)',
-        'PyCrypto (>= 2.5)',
-        'FormEncode (>= 1.2.6)',
-        'Requests (>= 1.0.2)',
+    packages=['nexel', 'nexel/config', 'nexel/util'],
+    install_requires=[
+        'argparse',
+        'tornado >= 2.4.1',
+        'paramiko >= 1.9.0',
+        'pycrypto >= 2.5',
+        'formencode >= 1.2.6',
+        'requests >= 1.0.2',
     ],
-    zip_safe=True,
     classifiers=[
         'Environment :: OpenStack',
         'Intended Audience :: Information Technology',
@@ -59,5 +58,6 @@ setup(
         'Programming Language :: Python',
     ],
     license='Modified BSD',
-    scripts=['nexel/daemon.py','nexel/shell.py'],
+    scripts=['nexeld', 'nexelcl'],
 )
+

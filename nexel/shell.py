@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Copyright (c) 2013, Synchrotron Light Source Australia Pty Ltd
 # All rights reserved.
 #
@@ -188,41 +186,43 @@ flavor_parser.set_defaults(command='flavors')
 flavor_parser.set_defaults(method='GET')
 flavor_parser.set_defaults(request='/accounts/<account_name>/flavors')
 
-# process command line
-args = vars(parser.parse_args())
 
-# construct url
-def _replace_all(text, dic):
-    for i, j in dic.iteritems():
-        if i[0] == '<' and i[-1] == '>':
-            text = text.replace(i, j)
-    return text
-request = _replace_all(args['request'], args)
-url = '%s:%s%s' % (SERVER, PORT, request)
-print 'Request:', args['method'], url
-
-# make request
-m = args['method']
-#try:
-if m == 'GET':
-    r = requests.get(url)
-elif m == 'POST':
-    r = requests.post(url)
-elif m == 'PUT':
-    r = requests.put(url)
-elif m == 'DELETE':
-    r = requests.delete(url)
-else:
-    raise ValueError()
-#except:
-#    sys.exit('*** Error: Nexel daemon not running')
-
-print 'Response:'
-try:
-    if args['command'] == 'server-log':
-        print json.loads(r.content)['output']
+def main():
+    # process command line
+    args = vars(parser.parse_args())
+    
+    # construct url
+    def _replace_all(text, dic):
+        for i, j in dic.iteritems():
+            if i[0] == '<' and i[-1] == '>':
+                text = text.replace(i, j)
+        return text
+    request = _replace_all(args['request'], args)
+    url = '%s:%s%s' % (SERVER, PORT, request)
+    print 'Request:', args['method'], url
+    
+    # make request
+    m = args['method']
+    #try:
+    if m == 'GET':
+        r = requests.get(url)
+    elif m == 'POST':
+        r = requests.post(url)
+    elif m == 'PUT':
+        r = requests.put(url)
+    elif m == 'DELETE':
+        r = requests.delete(url)
     else:
-        print json.dumps(json.loads(r.content), sort_keys=True, indent=4, separators=(',', ': '))
-except:
-    print 'No json'
+        raise ValueError()
+    #except:
+    #    sys.exit('*** Error: Nexel daemon not running')
+    
+    print 'Response:'
+    try:
+        if args['command'] == 'server-log':
+            print json.loads(r.content)['output']
+        else:
+            print json.dumps(json.loads(r.content), sort_keys=True, indent=4, separators=(',', ': '))
+    except:
+        print 'No json'
 

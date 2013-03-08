@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from config.settings import Settings
-from handlers import dispatcher
 import logging
+from nexel.config.settings import Settings
+from nexel.handlers import dispatcher
 import tornado.options
 import tornado.web
 

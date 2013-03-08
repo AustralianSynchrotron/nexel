@@ -25,15 +25,15 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import base64
-from config.accounts import Accounts
-from config.datamounts import Datamounts
-from config.settings import Settings
 import crypt
 from Crypto.Random import random
 import datetime
 import formencode.validators
 import json
 #import logging
+from nexel.config.accounts import Accounts
+from nexel.config.datamounts import Datamounts
+from nexel.config.settings import Settings
 import re
 import string
 from tornado.ioloop import IOLoop

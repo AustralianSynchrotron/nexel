@@ -30,6 +30,13 @@ Optional Python packages:
 
 - Pyinotify 0.9.4+ (https://github.com/seb-m/pyinotify)
 
+Installation
+------------
+
+1. Ensure pip is installed: easy_install pip
+2. Ensure git, gcc and python dev are installed: yum install git gcc python-devel
+3. Install Nexel from GitHub: pip install git+https://github.com/AustralianSynchrotron/nexel
+
 
 TODO:
 

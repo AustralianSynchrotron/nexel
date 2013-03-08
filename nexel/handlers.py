@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from config.accounts import Accounts
 import json
-from launch import LaunchProcess
+from nexel.config.accounts import Accounts
+from nexel.launch import LaunchProcess
 from tornado.web import RequestHandler, HTTPError, asynchronous
 from util.openstack import OpenStackRequest, make_request_async, http_success # TODO: make_request_async should be a method on OpenStackReq
 

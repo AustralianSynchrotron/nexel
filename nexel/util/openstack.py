@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from config.accounts import Accounts
-from config.settings import Settings
 import json
+from nexel.config.accounts import Accounts
+from nexel.config.settings import Settings
 from tornado import httpclient
 from tornado.web import HTTPError
 

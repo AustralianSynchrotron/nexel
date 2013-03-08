@@ -24,10 +24,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from .settings import Settings
 import ConfigParser
 import datetime
 import logging
+from nexel.config.settings import Settings
 import os.path
 try:
     import pyinotify
