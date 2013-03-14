@@ -40,7 +40,7 @@ PORT = '8888'
 # TODO: "nexel get warnings"... list of current warnings with the filesystem
 
 # "nexel"
-parser = argparse.ArgumentParser(prog='nexel',
+parser = argparse.ArgumentParser(prog=sys.argv[0],
                                  description='Nexel Shell: Build and launch self-managed OpenStack instances for multiple tenants.')
 subparsers = parser.add_subparsers(help='commands')
 
