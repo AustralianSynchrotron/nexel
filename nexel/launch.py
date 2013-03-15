@@ -284,9 +284,10 @@ class LaunchProcess(object):
         cloud_init += 'python ~/nexel-ready.py\n'
         
         # boot the server, get srv_id
+        mach = Accounts()[self._acc_name]['machines'][self._mach_name]['boot']
         body = {'server': {'name': self._mach_name,
-                           'imageRef': '', # TODO: from Accounts()
-                           'flavorRef': '', # TODO: from Accounts()
+                           'imageRef': mach['snapshot_id'],
+                           'flavorRef': mach['flavor_id'],
                            'security_groups': [{'name': 'ssh'}],
                            'user_data': base64.b64encode(cloud_init),
                            'metadata': {'nexel-type': 'instance',

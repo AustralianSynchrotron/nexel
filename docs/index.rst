@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    restful
+   flow
    about
 
 Indices and tables
