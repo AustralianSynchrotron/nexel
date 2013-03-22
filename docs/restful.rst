@@ -5,41 +5,69 @@ Documentation on the Sphinx httpdomain extension is `here <http://pythonhosted.o
 
 Some examples pulled from the docs:
 
-.. http:method:: GET /api/foo/bar/{id}/{slug}
+.. http:method:: GET /accounts
 
-   :arg id: An id
-   :arg slug: A slug
+   Retrieve a list of all available accounts.
 
-   Retrieve list of foobars matching given id.
+.. http:method:: GET /accounts/{account_name}
 
-.. http:method:: GET /api/foo/bar/?id&slug
+   :arg account_name: Name of the account
+   :response 404: Account not found
 
-   :param id: An id
-   :optparam slug: A slug
+   Retrieve information of a specified account (mostly authentication information).
 
-   Search for a list of foobars matching given id.
+.. http:method:: GET /accounts/{account_name}/machines
 
-.. http:method:: GET /api/foo/bar/{id}/?slug
+   :arg account_name: Name of the account
+   :response 404: Account not found
 
-   :arg integer id: An id
-   :optparam string slug: A slug
+   Retrieve a list of all available machines in a specified account.
 
-   Search for a list of foobars matching given id.
+.. http:method:: GET /accounts/{account_name}/machines/{machine_name}
 
-.. http:method:: POST /api/foo/bar/
+   :arg account_name: Name of the account
+   :arg machine_name: Name of the machine
+   :response 404: Account or machine not found
 
-   :param string slug: A slug
-   :response 201: A foobar was created successfully.
-   :response 400:
+   Retrieve information about a specified machine.
 
-   Create a foobar.
 
-.. http:method:: GET /api/
-   :label-name: get-root
-   :title: API root
+
+.. http:method:: POST /accounts/{account_name}/machines/{machine_name}/instance
+
+   **Example request**:
+   
+   .. sourcecode:: http
+   
+   POST /accounts/my-account/machines/my-machine/instance HTTP/1.1
+   
+   **Example response**:
+   
+   -- sourcecode:: http
+   
+   HTTP/1.1 202 OK
+   Content-Type: application/json; charset=UTF-8
+   
+   {"output":
+      {"launch_id": "L-abcdefg-0000000000000000"}
+   }
+   
+   :arg account_name: Name of the account
+   :arg machine_name: Name of the machine
+   :response 202: Instance successfully enqueued and is launching
+   :response 400: Bad authentication type or value
+   :response 404: Account or machine not found
+   :response 500: Server error
+
+   Launch an instance from the snapshot of a specified machine (TODO: json body).
+
+
+
+
 
 The :http:method:`get-root` contains all of the API.
 
 .. http:response:: Foobar object
 
 A :http:response:`foobar-object` is returned when you foo the bar.
+
