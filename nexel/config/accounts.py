@@ -94,6 +94,23 @@ def __crawl():
             if RX_NAMES.match(machine_name) is None:
                 continue
             
+            # read build.conf
+            try:
+                build = ConfigParser.ConfigParser()
+                build.read(machine_path + '/build.conf')
+                vm_image_id = build.get('vm', 'image-id')
+                vm_flavor_id = build.get('vm', 'flavor-id')
+                build_script = __read_shell_script(machine_path + '/build.sh')
+                assert build_script is not None
+                m[account_name]['machines'][machine_name] = {}
+                m[account_name]['machines'][machine_name]['build'] = {'image_id': vm_image_id,
+                                                                      'flavor_id': vm_flavor_id,
+                                                                      'script': build_script}
+                print m[account_name]['machines'][machine_name]['build']
+            except:
+                # TODO: warn the user that the boot.conf file does not exit, or has errors
+                continue
+            
             # read boot.conf
             try:
                 boot = ConfigParser.ConfigParser()
@@ -101,14 +118,14 @@ def __crawl():
                 vm_snapshot_id = boot.get('vm', 'snapshot-id')
                 vm_flavor_id = boot.get('vm', 'flavor-id')
                 datamounts_datamount = boot.get('datamounts', 'datamount')
+                if not m[account_name]['machines'].has_key(machine_name):
+                    m[account_name]['machines'][machine_name] = {}
+                m[account_name]['machines'][machine_name]['boot'] = {'snapshot_id': vm_snapshot_id,
+                                                                     'flavor_id': vm_flavor_id,
+                                                                     'datamount': datamounts_datamount}
             except:
                 # TODO: warn the user that the boot.conf file does not exit, or has errors
                 continue
-            
-            m[account_name]['machines'][machine_name] = {}
-            m[account_name]['machines'][machine_name]['boot'] = {'snapshot_id': vm_snapshot_id,
-                                                                 'flavor_id': vm_flavor_id,
-                                                                 'datamount': datamounts_datamount}
             '''
             # minimum requirements:
             #  either build-from.id OR boot-from.id

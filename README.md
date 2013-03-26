@@ -50,4 +50,5 @@ TODO:
 
 - Logging of launched instances with username/email for uptake tracking
 - Install binaries "nexeld" (daemon) and "nexel" (shell)
+- Timeouts inside of build.conf and boot.conf
 

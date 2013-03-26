@@ -223,10 +223,13 @@ class LaunchProcess(object):
         cloud_init += 'echo "nexel(%s): start"\n' % self._acc_name
         cloud_init += 'echo "nexel(%s): data=%s"\n' % (self._acc_name, jdata.replace('\"', '\\\"'))
         
-        # provide user access
+        # provide user access via ssh
         cloud_init += 'useradd -p %s %s\n' % (password_enc, self._username)
         cloud_init += 'sed -i \'s/^PasswordAuthentication.*$/PasswordAuthentication yes/g\' /etc/ssh/sshd_config\n'
         cloud_init += '/etc/init.d/sshd restart\n'
+        
+        # correct the hostname
+        cloud_init += 'echo "$IP_ADDRESS %s %s.localdomain" >> /etc/hosts\n' % (self._mach_name, self._mach_name)
         
         # add key and mount sshfs
         # sshfs option: -o ciphers=arcfour
@@ -248,8 +251,8 @@ class LaunchProcess(object):
         
         # write to meta-data: nexel-ready=True
         auth = Accounts()[self._acc_name]['auth']
-        cloud_init += 'echo "#!/usr/bin/env python\n'
-        cloud_init += 'import urllib2 # adapt for python 3+\n' #TODO
+        #cloud_init += 'echo "#!/usr/bin/env python\n'
+        cloud_init += 'echo "import urllib2 # adapt for python 3+\n' #TODO
         cloud_init += 'import json\n'
         cloud_init += '\n'
         cloud_init += 'tenant_id = \'%s\'\n' % auth['tenant_id']
@@ -282,6 +285,7 @@ class LaunchProcess(object):
         # finish script
         cloud_init += 'echo "nexel(%s): end"\n' % self._acc_name
         cloud_init += 'python ~/nexel-ready.py\n'
+        cloud_init += 'rm -rf ~/nexel-ready.py\n'
         
         # boot the server, get srv_id
         mach = Accounts()[self._acc_name]['machines'][self._mach_name]['boot']

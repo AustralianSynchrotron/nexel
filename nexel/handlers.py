@@ -27,6 +27,7 @@
 import json
 from nexel.config.accounts import Accounts
 from nexel.launch import LaunchProcess
+from nexel.snapshot import SnapshotProcess
 from tornado.web import RequestHandler, HTTPError, asynchronous
 from util.openstack import OpenStackRequest, make_request_async, http_success # TODO: make_request_async should be a method on OpenStackReq
 
@@ -63,6 +64,23 @@ class MachineInfo(NexelRequestHandler):
             self.write({'output': Accounts()[acc_name]['machines'][mach_name]})
         except:
             raise HTTPError(404)
+
+class SnapshotActions(NexelRequestHandler):
+    @asynchronous
+    def post(self, acc_name, mach_name):
+        # create and start snapshot process
+        try:
+            sp = SnapshotProcess(acc_name, mach_name)
+            sp.start()
+        except HTTPError as e:
+            raise e
+        except:
+            raise HTTPError(500)
+        
+        # return snapshot id
+        self.set_status(202)
+        self.write({'output': {'snapshot_id': sp.snapshot_id()}})
+        self.finish()
 
 class LaunchInstance(NexelRequestHandler):
     @asynchronous
@@ -228,7 +246,7 @@ dispatcher = [
     (r'/accounts/([0-9a-zA-Z\-\_]+)', AccountInfo),
     (r'/accounts/([0-9a-zA-Z\-\_]+)/machines', ListAllMachines),
     (r'/accounts/([0-9a-zA-Z\-\_]+)/machines/([0-9a-zA-Z\-\_]+)', MachineInfo),
-    #(r'/accounts/([0-9a-zA-Z\-\_]+)/machines/([0-9a-zA-Z\-\_]+)/snapshot', SnapshotActions),
+    (r'/accounts/([0-9a-zA-Z\-\_]+)/machines/([0-9a-zA-Z\-\_]+)/snapshot', SnapshotActions),
     (r'/accounts/([0-9a-zA-Z\-\_]+)/machines/([0-9a-zA-Z\-\_]+)/instance', LaunchInstance),
     #(r'/accounts/([0-9a-zA-Z\-\_]+)/instances', ListAllInstances), # filter with meta-data?
     (r'/accounts/([0-9a-zA-Z\-\_]+)/servers', ListAllServers),
