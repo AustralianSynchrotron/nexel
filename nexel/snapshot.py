@@ -197,6 +197,7 @@ class SnapshotProcess(object):
                            'imageRef': self._settings['image_id'],
                            'flavorRef': self._settings['flavor_id'],
                            #'security_groups': [{'name': 'ssh'}],
+                           #'key_name': 'Web-Keypair',
                            'user_data': base64.b64encode(cloud_init),
                            'metadata': {'nexel-type': 'snapshot',
                                         'nexel-ready': 'False'}}}
@@ -227,7 +228,8 @@ class SnapshotProcess(object):
             except:
                 pass
             if self._process['server_ready'] == 2:
-                self._continue()
+                #self._continue()
+                self.io_loop().add_timeout(BUILD_DELAY, self._continue)
                 return
             self.io_loop().add_timeout(BUILD_DELAY, self._do_server_ready_op)
         req = OpenStackRequest(self._acc_name, 'GET', '/servers/'+self._server_id+'/metadata/nexel-ready')
@@ -266,7 +268,8 @@ class SnapshotProcess(object):
                 self._error(500)
                 return
             if self._process['snapshot_ready'] == 2:
-                self._continue()
+                #self._continue()
+                self.io_loop().add_timeout(SNAPSHOT_DELAY, self._continue)
                 return
             self.io_loop().add_timeout(SNAPSHOT_DELAY, self._do_snapshot_ready_op)
         url = '/images?%s' % urllib.urlencode({'name': self._snapshot_name,
