@@ -39,19 +39,19 @@ Some examples pulled from the docs:
    
    .. sourcecode:: http
    
-   POST /accounts/my-account/machines/my-machine/instance HTTP/1.1
+       POST /accounts/my-account/machines/my-machine/instance HTTP/1.1
    
    **Example response**:
    
-   -- sourcecode:: http
+   .. sourcecode:: http
    
-   HTTP/1.1 202 OK
-   Content-Type: application/json; charset=UTF-8
-   
-   {"output":
-      {"launch_id": "L-abcdefg-0000000000000000"}
-   }
-   
+       HTTP/1.1 202 OK
+       Content-Type: application/json; charset=UTF-8
+       
+       {"output":
+          {"launch_id": "L-abcdefg-0000000000000000"}
+       }
+       
    :arg account_name: Name of the account
    :arg machine_name: Name of the machine
    :response 202: Instance successfully enqueued and is launching
