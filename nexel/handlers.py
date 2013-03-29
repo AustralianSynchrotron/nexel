@@ -1,48 +1,30 @@
-# Copyright (c) 2013, Synchrotron Light Source Australia Pty Ltd
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in the
-#     documentation and/or other materials provided with the distribution.
-#   * Neither the Australian Synchrotron nor the names of its contributors
-#     may be used to endorse or promote products derived from this software
-#     without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 import json
+from tornado.web import RequestHandler, HTTPError, asynchronous
+
 from nexel.config.accounts import Accounts
 from nexel.launch import LaunchProcess
 from nexel.snapshot import SnapshotProcess
-from tornado.web import RequestHandler, HTTPError, asynchronous
-from util.openstack import OpenStackRequest, make_request_async, http_success # TODO: make_request_async should be a method on OpenStackReq
+# TODO: make_request_async should be a method on OpenStackReq
+from nexel.util.openstack \
+import OpenStackRequest, make_request_async, http_success
+
 
 class NexelRequestHandler(RequestHandler):
     def set_default_headers(self):
         self.set_header('Content-Type', 'application/json; charset=UTF-8')
+
     def write_error(self, status_code, **kwargs):
         self.set_header('Content-Type', 'application/json; charset=UTF-8')
+
 
 class CatchAll(NexelRequestHandler):
     pass
 
+
 class ListAllAccounts(NexelRequestHandler):
     def get(self):
         self.write({'output': Accounts().keys()})
+
 
 class AccountInfo(NexelRequestHandler):
     def get(self, acc_name):
@@ -51,6 +33,7 @@ class AccountInfo(NexelRequestHandler):
         except:
             raise HTTPError(404)
 
+
 class ListAllMachines(NexelRequestHandler):
     def get(self, acc_name):
         try:
@@ -58,12 +41,14 @@ class ListAllMachines(NexelRequestHandler):
         except:
             raise HTTPError(404)
 
+
 class MachineInfo(NexelRequestHandler):
     def get(self, acc_name, mach_name):
         try:
             self.write({'output': Accounts()[acc_name]['machines'][mach_name]})
         except:
             raise HTTPError(404)
+
 
 class SnapshotActions(NexelRequestHandler):
     @asynchronous
@@ -76,11 +61,12 @@ class SnapshotActions(NexelRequestHandler):
             raise e
         except:
             raise HTTPError(500)
-        
+
         # return snapshot id
         self.set_status(202)
         self.write({'output': {'snapshot_id': sp.snapshot_id()}})
         self.finish()
+
 
 class LaunchInstance(NexelRequestHandler):
     @asynchronous
@@ -92,7 +78,7 @@ class LaunchInstance(NexelRequestHandler):
             auth_value = j['auth_value'].strip()
         except:
             raise HTTPError(400)
-        
+
         # create and start launch process
         try:
             lp = LaunchProcess(acc_name, mach_name, auth_type, auth_value)
@@ -101,11 +87,12 @@ class LaunchInstance(NexelRequestHandler):
             raise e
         except:
             raise HTTPError(500)
-        
+
         # return launch id
         self.set_status(202)
         self.write({'output': {'launch_id': lp.launch_id()}})
         self.finish()
+
 
 class ListAllServers(NexelRequestHandler):
     @asynchronous
@@ -134,6 +121,7 @@ class ListAllServers(NexelRequestHandler):
         req = OpenStackRequest(acc_name, 'GET', '/servers/detail')
         make_request_async(req, callback)
 
+
 class ServerActions(NexelRequestHandler):
     @asynchronous
     def get(self, acc_name, srv_id):
@@ -144,15 +132,16 @@ class ServerActions(NexelRequestHandler):
             self.finish()
         req = OpenStackRequest(acc_name, 'GET', '/servers/'+srv_id)
         make_request_async(req, callback)
-    
+
     @asynchronous
     def delete(self, acc_name, srv_id):
         def callback(resp):
             if not http_success(resp.code):
                 raise HTTPError(resp.code)
             self.finish()
-        req = OpenStackRequest(acc_name, 'DELETE', '/servers/'+srv_id)
+        req = OpenStackRequest(acc_name, 'DELETE', '/servers/' + srv_id)
         make_request_async(req, callback)
+
 
 class GetServerIp(NexelRequestHandler):
     @asynchronous
@@ -168,8 +157,9 @@ class GetServerIp(NexelRequestHandler):
                 ip_address = ''
             self.write({'output': {'ip_address': ip_address}})
             self.finish()
-        req = OpenStackRequest(acc_name, 'GET', '/servers/'+srv_id)
+        req = OpenStackRequest(acc_name, 'GET', '/servers/' + srv_id)
         make_request_async(req, callback)
+
 
 class GetServerLog(NexelRequestHandler):
     @asynchronous
@@ -187,6 +177,7 @@ class GetServerLog(NexelRequestHandler):
         body = {'os-getConsoleOutput': {}}
         req = OpenStackRequest(acc_name, 'POST', '/servers/'+srv_id+'/action', body=body)
         make_request_async(req, callback)
+
 
 class QuotaInfo(NexelRequestHandler):
     @asynchronous
@@ -210,6 +201,7 @@ class QuotaInfo(NexelRequestHandler):
         req = OpenStackRequest(acc_name, 'GET', '/limits')
         make_request_async(req, callback)
 
+
 class ListAllFlavors(NexelRequestHandler):
     @asynchronous
     def get(self, acc_name):
@@ -221,9 +213,11 @@ class ListAllFlavors(NexelRequestHandler):
         req = OpenStackRequest(acc_name, 'GET', '/flavors')
         make_request_async(req, callback)
 
+
 class ListAllInstances(NexelRequestHandler):
     def get(self):
         self.write({'output': LaunchProcess.all_ids()})
+
 
 class GetInstanceInfo(NexelRequestHandler):
     def get(self, launch_id):
@@ -240,6 +234,7 @@ class GetInstanceInfo(NexelRequestHandler):
             if lp.server_ready():
                 out['server_id'] = lp.server_id()
         self.write({'output': out})
+
 
 dispatcher = [
     (r'/accounts', ListAllAccounts),
@@ -261,4 +256,3 @@ dispatcher = [
     # TODO: /datamounts...
     (r'/.*', CatchAll)
 ]
-
