@@ -1,29 +1,3 @@
-# Copyright (c) 2013, Synchrotron Light Source Australia Pty Ltd
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-#   * Redistributions of source code must retain the above copyright
-#     notice, this list of conditions and the following disclaimer.
-#   * Redistributions in binary form must reproduce the above copyright
-#     notice, this list of conditions and the following disclaimer in the
-#     documentation and/or other materials provided with the distribution.
-#   * Neither the Australian Synchrotron nor the names of its contributors
-#     may be used to endorse or promote products derived from this software
-#     without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 import ConfigParser
 import datetime
 import logging
@@ -56,7 +30,7 @@ def __crawl():
     accounts_path = Settings()['accounts_path']
     if not os.path.isdir(accounts_path):
         raise ValueError('accounts directory does not exist')
-    
+
     # crawl through sub-directories
     m = {}
     for account_name in os.listdir(accounts_path):
@@ -65,7 +39,7 @@ def __crawl():
             continue
         if RX_NAMES.match(account_name) is None:
             continue
-        
+
         # read auth.conf (if exists)
         try:
             auth = ConfigParser.ConfigParser()
@@ -76,13 +50,13 @@ def __crawl():
         except:
             # TODO: warn the user that the auth.conf file does not exit, or has errors
             continue
-        
+
         # add to model
         m[account_name] = {'auth': {'tenant_id': tenant_id,
                                     'username': username,
                                     'password': password},
                            'machines': {}}
-        
+
         # crawl through machines for this account
         path_to_machines = account_path + '/machines'
         if not os.path.isdir(path_to_machines):
@@ -93,7 +67,7 @@ def __crawl():
                 continue
             if RX_NAMES.match(machine_name) is None:
                 continue
-            
+
             # read build.conf
             try:
                 build = ConfigParser.ConfigParser()
@@ -110,7 +84,7 @@ def __crawl():
             except:
                 # TODO: warn the user that the boot.conf file does not exit, or has errors
                 continue
-            
+
             # read boot.conf
             try:
                 boot = ConfigParser.ConfigParser()
@@ -133,14 +107,14 @@ def __crawl():
             boot_from_id = __read_os_id(machine_path + '/boot-from.id')
             if build_from_id is None and boot_from_id is None:
                 continue
-            
+
             # add machine
             m[account_name]['machines'][machine_name] = {}
             if build_from_id is not None:
                 m[account_name]['machines'][machine_name]['build'] = {'from_id': build_from_id}
             if boot_from_id is not None:
                 m[account_name]['machines'][machine_name]['boot'] = {'from_id': boot_from_id}
-            
+
             # read optional shell scripts (build.sh and boot.sh)
             build_script = __read_shell_script(machine_path + '/build.sh')
             boot_script = __read_shell_script(machine_path + '/boot.sh')
@@ -153,7 +127,7 @@ def __crawl():
                     m[account_name]['machines'][machine_name]['boot'] = {}
                 m[account_name]['machines'][machine_name]['boot']['script'] = boot_script
             '''
-    
+
     # update singleton
     Accounts().clear()
     Accounts().update(m)
@@ -209,4 +183,3 @@ def __install_listener():
                                 pyinotify.IN_DELETE |
                                 pyinotify.IN_MOVED_TO |
                                 pyinotify.IN_MOVED_FROM, rec=True)
-

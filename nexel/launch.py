@@ -95,7 +95,7 @@ class LaunchProcess(object):
 
     @classmethod
     def get(cls, launch_id):
-        if not cls.__current_processes.has_key(launch_id):
+        if not launch_id in cls.__current_processes:
             return None
         return cls.__current_processes[launch_id]
 
