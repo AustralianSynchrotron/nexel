@@ -1,4 +1,5 @@
 import json
+import logging
 from tornado.web import RequestHandler, HTTPError, asynchronous
 
 from nexel.config.accounts import Accounts
@@ -7,6 +8,9 @@ from nexel.snapshot import SnapshotProcess
 # TODO: make_request_async should be a method on OpenStackReq
 from nexel.util.openstack \
 import OpenStackRequest, make_request_async, http_success
+
+
+logger = logging.getLogger(__name__)
 
 
 class NexelRequestHandler(RequestHandler):
@@ -76,7 +80,8 @@ class LaunchInstance(NexelRequestHandler):
             j = json.loads(self.request.body)
             auth_type = j['auth_type']
             auth_value = j['auth_value'].strip()
-        except:
+        except Exception, e:
+            logger.exception(e)
             raise HTTPError(400)
 
         # create and start launch process
@@ -85,7 +90,8 @@ class LaunchInstance(NexelRequestHandler):
             lp.start()
         except HTTPError as e:
             raise e
-        except:
+        except Exception, e:
+            logger.exception(e)
             raise HTTPError(500)
 
         # return launch id

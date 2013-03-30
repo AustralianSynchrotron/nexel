@@ -1,9 +1,12 @@
 from tornado import httpclient
 from tornado.web import HTTPError
 import json
-
+import logging
 from nexel.config.accounts import Accounts
 from nexel.config.settings import Settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class OpenStackRequest(object):

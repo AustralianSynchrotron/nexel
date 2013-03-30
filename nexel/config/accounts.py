@@ -14,17 +14,24 @@ RX_NAMES = re.compile(r'^[0-9a-zA-Z\-\_]+$')
 RX_OS_ID = re.compile(r'^[0-9a-f\-]+$')
 UPDATE_DELAY = datetime.timedelta(seconds=1)
 
+
+logger = logging.getLogger(__name__)
+
+
 class __AccountsSingleton(object):
     d = {}
     lock = [False]
 
+
 def Accounts():
     return __AccountsSingleton().d
+
 
 def read_and_install():
     __crawl()
     if pyinotify is not None:
         __install_listener()
+
 
 def __crawl():
     accounts_path = Settings()['accounts_path']
@@ -47,14 +54,16 @@ def __crawl():
             tenant_id = auth.get('os-credentials', 'tenant-id')
             username = auth.get('os-credentials', 'username')
             password = auth.get('os-credentials', 'password')
-        except:
-            # TODO: warn the user that the auth.conf file does not exit, or has errors
+            key_name = auth.get('os-credentials', 'key-name')
+        except Exception, e:
+            logger.exception(e)
             continue
 
         # add to model
         m[account_name] = {'auth': {'tenant_id': tenant_id,
                                     'username': username,
-                                    'password': password},
+                                    'password': password,
+                                    'key-name': key_name},
                            'machines': {}}
 
         # crawl through machines for this account
@@ -81,8 +90,8 @@ def __crawl():
                                                                       'flavor_id': vm_flavor_id,
                                                                       'script': build_script}
                 print m[account_name]['machines'][machine_name]['build']
-            except:
-                # TODO: warn the user that the boot.conf file does not exit, or has errors
+            except Exception, e:
+                logger.exception(e)
                 continue
 
             # read boot.conf
@@ -97,8 +106,8 @@ def __crawl():
                 m[account_name]['machines'][machine_name]['boot'] = {'snapshot_id': vm_snapshot_id,
                                                                      'flavor_id': vm_flavor_id,
                                                                      'datamount': datamounts_datamount}
-            except:
-                # TODO: warn the user that the boot.conf file does not exit, or has errors
+            except Exception, e:
+                logger.exception(e)
                 continue
             '''
             # minimum requirements:
@@ -132,6 +141,7 @@ def __crawl():
     Accounts().clear()
     Accounts().update(m)
 
+
 def __read_os_id(path):
     try:
         f = open(path, 'r')
@@ -148,6 +158,7 @@ def __read_os_id(path):
         return None
     return os_id
 
+
 def __read_shell_script(path):
     try:
         f = open(path, 'r')
@@ -159,9 +170,11 @@ def __read_shell_script(path):
         return None
     return s
 
+
 def __batch_update():
     __AccountsSingleton().lock[0] = False
     __crawl()
+
 
 def __pyinotify_event(notifier):
     # lock and batch multiple inotify events
@@ -170,6 +183,7 @@ def __pyinotify_event(notifier):
     __AccountsSingleton().lock[0] = True
     io_loop = IOLoop().instance()
     io_loop.add_timeout(UPDATE_DELAY, __batch_update)
+
 
 def __install_listener():
     accounts_path = Settings()['accounts_path']

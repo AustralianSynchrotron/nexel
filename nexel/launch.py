@@ -4,8 +4,9 @@ from Crypto.Random import random
 import datetime
 import formencode.validators
 import json
-#import logging
+import logging
 from nexel.config.accounts import Accounts
+from nexel.config.datamounts import Datamounts
 from nexel.config.settings import Settings
 import re
 import string
@@ -23,6 +24,10 @@ IP_DELAY = datetime.timedelta(seconds=5)
 BOOT_DELAY = datetime.timedelta(seconds=10)
 
 parse_email = formencode.validators.Email.to_python
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def random_chars(num_chars):
@@ -55,6 +60,7 @@ class LaunchProcess(object):
         self._username = None
         self._email = None
         self._password = None
+        self._key_name = Accounts()[acc_name]['auth']['key-name']
         try:
             assert(auth_value != '')
             if self._auth_type == 'username':
@@ -66,14 +72,15 @@ class LaunchProcess(object):
                 self._username = email_to_username(auth_value)
             else:
                 raise HTTPError(400)
-        except:
+        except Exception, e:
+            logger.exception(e)
             raise HTTPError(400)
         self._launch_id = generate_id()
         self._created = datetime.datetime.now()
         self._key_pub = None
         self._key_priv = None
         self._server_id = None
-        self._datamount = None # TODO: get from Datamounts()
+        self._datamount = Accounts()[acc_name]['machines'][mach_name]['boot']['datamount']
         self._process = {'keygen': 0,
                          'server_add': 0,
                          'server_ip': 0,
@@ -134,7 +141,7 @@ class LaunchProcess(object):
         self.io_loop().add_callback(self._continue)
 
     def _continue(self):
-        print 'in _continue()'
+        logger.debug('in _continue()')
         # 1. keygen
         if self._process['keygen'] == 0:
             return self._do_keygen()
@@ -158,7 +165,7 @@ class LaunchProcess(object):
         print 'done launch for %s' % self._launch_id
 
     def _do_keygen(self):
-        print 'in _do_keygen'
+        logger.debug('in _do_keygen')
         self._process['keygen'] = 1
 
         # check for datamount
@@ -175,7 +182,7 @@ class LaunchProcess(object):
         generate_key_async(callback)
 
     def _do_server_add(self):
-        print 'in _do_server_add'
+        logger.debug('in _do_server_add')
         self._process['server_add'] = 1
 
         # generate a random password for the session, encrypt for linux
@@ -213,12 +220,13 @@ class LaunchProcess(object):
         cloud_init += 'echo "%s" > ~/.ssh/id_rsa\n' % self._key_priv
         cloud_init += 'chmod 600 ~/.ssh/id_rsa\n'
         cloud_init += 'mkdir /mnt/data\n'
-        #sshfs_cmd = '/usr/local/bin/sshfs' # TODO: put into Datamount() configuration
-        #sshfs_domain = '' # TODO: from Datamount()
-        #if self._auth_type == 'username':
-        #    cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other %s@%s: /mnt/data\n' % (sshfs_cmd, sshfs_domain, self._username)
-        #else:
-        #    cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other "%s"@%s: /mnt/data\n' % (sshfs_cmd, sshfs_domain, self._email)
+        # TODO: put into Datamount() configuration
+        sshfs_cmd = '/usr/local/bin/sshfs'
+        sshfs_domain = Datamounts()[self._datamount]['server']['domain']
+        if self._auth_type == 'username':
+            cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other %s@%s:~ /mnt/data\n' % (sshfs_cmd, self._username, sshfs_domain)
+        else:
+            cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other "%s"@%s:~ /mnt/data\n' % (sshfs_cmd, self._email, sshfs_domain)
 
         # add custom boot-up script to cloud_init (eg. update an app, put a shortcut on the desktop)
         # as provided in Accounts()
@@ -274,55 +282,60 @@ class LaunchProcess(object):
                                         'nexel-ready': 'False',
                                         'nexel-username': self._username,
                                         'nexel-password': self._password},
-                           'key_name': 'Web-Keypair', }}
+                           'key_name': self._key_name, }}
+        logger.debug(cloud_init)
 
         def callback(resp):
             try:
-                print resp.body
+                logger.debug(resp.body)
                 if resp.code == 413:
-                    print 'error quota exceeded 413'
+                    logger.error('error quota exceeded 413')
                     self._error(413)
                     return
                 j = json.loads(resp.body)
                 server_id = j['server']['id']
                 assert(server_id != '')
-            except:
-                print 'error adding server'
+            except Exception, e:
+                logger.exception(e)
                 self._error(500)
                 return
             self._server_id = server_id
             self._process['server_add'] = 2
             self._continue()
+        logger.debug(body)
         req = OpenStackRequest(self._acc_name, 'POST', '/servers', body=body)
         make_request_async(req, callback)
 
     def _do_server_ip_op(self):
-        print 'in _do_server_ip_op'
+        logger.debug('in _do_server_ip_op')
+
         def callback(resp):
             try:
                 j = json.loads(resp.body)
                 addr = j['server']['addresses']
                 self._ip_address = addr[addr.keys()[0]][0]['addr']
                 self._process['server_ip'] = 2
-                print 'got ip', self._ip_address
-            except:
-                print 'havent got ip address'
+                logger.debug('got ip %s' % self._ip_address)
+            except Exception, e:
+                logger.debug('havent got ip address')
+                logger.exception(e)
                 self.io_loop().add_timeout(IP_DELAY, self._do_server_ip_op)
                 #
                 # TODO: have a maximum termination ...
                 #
             if self._process['server_ip'] == 2:
                 self._continue()
-        req = OpenStackRequest(self._acc_name, 'GET', '/servers/'+self._server_id)
+        req = OpenStackRequest(self._acc_name,
+                               'GET', '/servers/' + self._server_id)
         make_request_async(req, callback)
 
     def _do_server_ip(self):
-        print 'in _do_server_ip'
+        logger.debug('in _do_server_ip')
         self._process['server_ip'] = 1
         self.io_loop().add_timeout(IP_DELAY, self._do_server_ip_op)
 
     def _do_datamount_add(self):
-        print 'in _do_datamount_add'
+        logger.debug('in _do_datamount_add')
         self._process['datamount_add'] = 1
 
         # check for datamount
@@ -348,25 +361,26 @@ class LaunchProcess(object):
             add_key_to_data_server_async(callback, self._datamount, ssh_key, email=self._email)
 
     def _do_server_ready_op(self):
-        print 'in _do_server_ready_op'
+        logger.debug('in _do_server_ready_op')
+
         def callback(resp):
             try:
                 j = json.loads(resp.body)
                 if j['meta']['nexel-ready'].lower() == 'true':
                     self._server_ready = True
                     self._process['server_ready'] = 2
-                    print 'server is ready'
-            except:
+                    logger.debug('server is ready')
+            except Exception, e:
+                logger.exception(e)
                 pass
             if self._process['server_ready'] == 2:
                 self._continue()
                 return
-            print 'server is not ready'
             self.io_loop().add_timeout(BOOT_DELAY, self._do_server_ready_op)
         req = OpenStackRequest(self._acc_name, 'GET', '/servers/'+self._server_id+'/metadata/nexel-ready')
         make_request_async(req, callback)
 
     def _do_server_ready(self):
-        print 'in _do_server_ready'
+        logger.debug('in _do_server_ready')
         self._process['server_ready'] = 1
         self.io_loop().add_timeout(BOOT_DELAY, self._do_server_ready_op)

@@ -1,4 +1,5 @@
 import Crypto.Random
+import logging
 import multiprocessing
 import os
 import paramiko
@@ -8,13 +9,19 @@ except:
     from StringIO import StringIO
 import tornado.autoreload
 
+from nexel.config.datamounts import Datamounts
+
 
 RSA_BITS = 2048  # 1024 2048 4096
 PROC_POOL = 4
 
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+
 def __generate_key_async():
-    print 'in __generate_key_async [%d]' % os.getpid()
+    logger.debug('in __generate_key_async [%d]' % os.getpid())
     Crypto.Random.atfork()
     key = paramiko.RSAKey.generate(RSA_BITS)
     public_key = 'ssh-rsa %s' % key.get_base64()
@@ -26,29 +33,29 @@ def __generate_key_async():
 
 
 def generate_key_async(callback):
-    print 'in generate_key_async [%d]' % os.getpid()
+    logger.debug('in generate_key_async [%d]' % os.getpid())
     __pool.apply_async(__generate_key_async, callback=callback)
 
 
 def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
-    print 'in __add_key_to_data_server_async [%d]' % os.getpid()
+    logger.debug('in __add_key_to_data_server_async [%d]' % os.getpid())
     if username is None:
         auth_value = email
     else:
         auth_value = username
-    print 'about to start paramiko'
-    domain = '' # TODO: from Datamounts()
-    username = '' # TODO: from Datamounts()
-    path_to_key = '' # TODO: from Datamounts()
+    logger.debug('about to start paramiko')
+    domain = Datamounts[dataserver]['server']['domain']
+    login = Datamounts[dataserver]['root']['username']
+    path_to_key = Datamounts[dataserver]['root']['private_key']
 
     # connect to datamount server
     try:
         client = paramiko.SSHClient()
         client.load_host_keys(path_to_key)
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(domain, username=username)
-    except:
-        print 'exception whilst connecting to datamount server'
+        client.connect(domain, username=login)
+    except Exception, e:
+        logger.exception(e)
         return False
 
     # check user is on the system, get id (if using email)
@@ -66,7 +73,7 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
     else:
         user_id = username
 
-    print 'got user_id:', user_id
+    logger.debug('got user_id:', user_id)
 
     # check/create home and .ssh directories
     _, stdout, stderr = client.exec_command('mkdir -p /home/%s/.ssh' % user_id) # TODO: use value in Datamounts()
@@ -87,14 +94,16 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
 
 
 def add_key_to_data_server_async(callback, dataserver, key_pub, username=None, email=None):
-    print 'in add_key_to_data_server [%d]' % os.getpid()
+    logger.debug('in add_key_to_data_server [%d]' % os.getpid())
     if username is None:
         assert(email is not None)
         assert(email != '')
     if email is None:
         assert(username is not None)
         assert(username != '')
-    __pool.apply_async(__add_key_to_data_server_async, (dataserver, key_pub, username, email), callback=callback)
+    __pool.apply_async(__add_key_to_data_server_async,
+                       (dataserver, key_pub, username, email),
+                       callback=callback)
 
 # setup processing pools
 __manager = multiprocessing.Manager()
