@@ -2,6 +2,7 @@ import Crypto.Random
 import logging
 import multiprocessing
 import os
+from os.path import join
 import paramiko
 try:
     from cStringIO import StringIO
@@ -37,17 +38,12 @@ def generate_key_async(callback):
     __pool.apply_async(__generate_key_async, callback=callback)
 
 
-def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
+def __add_key_to_data_server_async(dataserver, ssh_key, username):
     logger.debug('in __add_key_to_data_server_async [%d]' % os.getpid())
-    if username is None:
-        uid = email
-    else:
-        uid = username
-    logger.debug('about to start paramiko')
     try:
-        domain = Datamounts[dataserver]['server']['domain']
-        login = Datamounts[dataserver]['root']['username']
-        path_to_key = Datamounts[dataserver]['root']['private_key']
+        domain = Datamounts()[dataserver]['server']['domain']
+        login = Datamounts()[dataserver]['root']['username']
+        path_to_key = Datamounts()[dataserver]['root']['private_key']
     except Exception, e:
         logger.exception(e)
         return False
@@ -62,54 +58,63 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
         logger.exception(e)
         return False
 
-    # check user is on the system, get id (if using email)
-    _, stdout, stderr = client.exec_command('id -u %s' % uid)
-    if stderr.read() != '':
+    # get user's home dir
+    _, stdout, stderr = \
+        client.exec_command('getent passwd "%s" | cut -d: -f6' % username)
+    stderr = stderr.read()
+    if stderr != '':
+        client.close()
+        logger.error(stderr)
+        return False
+    try:
+        home = stdout.read().strip()
+    except Exception, e:
+        logger.exception(e)
         client.close()
         return False
-    if username is None:
-        try:
-            stdout = stdout.read().strip()
-            user_id = str(long(stdout))
-        except Exception, e:
-            logger.exception(e)
-            client.close()
-            return False
-    else:
-        user_id = username
 
-    logger.debug('got user_id:', user_id)
-
+    logger.debug('got user home dir: %s' % home)
     # check/create home and .ssh directories
-    _, stdout, stderr = client.exec_command('mkdir -p /home/%s/.ssh' % user_id) # TODO: use value in Datamounts()
-    # maybe use correct user id for home dir and authorized_keys file?
-    if stderr.read() != '':
+    dotssh = join(home, '.ssh')
+    command = '[ ! -d %s ] && mkdir -p %s '\
+            '&& chown -R `id -u %s`:`id -g %s` %s' % \
+            (dotssh, dotssh, username, username, dotssh)
+    logger.debug(command)
+    _, stdout, stderr = \
+        client.exec_command(command)
+    stderr = stderr.read()
+    if stderr != '':
         client.close()
+        logger.error(stderr)
         return False
 
     # append public key to authorized keys
-    cmd = 'echo "%s" >> /home/%s/.ssh/authorized_keys' % (ssh_key.strip().replace('\"', '\\\"'),
-                                                          user_id) # TODO: use value in Datamounts()
-    _, stdout, stderr = client.exec_command(cmd)
-    if stderr.read() != '':
+    keys = join(dotssh, 'authorized_keys')
+    pubkey = ssh_key.strip().replace('\"', '\\\"')
+    command = '[ -e %s ] && echo "%s" >> %s || '\
+        '(echo "%s" > %s && chown`id -u %s`:`id -g %s` %s)' \
+        % (keys, pubkey, keys, pubkey, keys, username, username, keys)
+    logger.debug(command)
+    _, stdout, stderr = client.exec_command(command)
+    stderr = stderr.read()
+    if stderr != '':
         client.close()
+        logger.error(stderr)
         return False
 
     client.close()
     return True
 
 
-def add_key_to_data_server_async(callback, dataserver, key_pub, username=None, email=None):
+def add_key_to_data_server_async(callback, dataserver, key_pub, username):
     logger.debug('in add_key_to_data_server [%d]' % os.getpid())
-    if username is None:
-        assert(email is not None)
-        assert(email != '')
-    if email is None:
-        assert(username is not None)
-        assert(username != '')
-    __pool.apply_async(__add_key_to_data_server_async,
-                       (dataserver, key_pub, username, email),
-                       callback=callback)
+    #__pool.apply_async(__add_key_to_data_server_async,
+    #                   (dataserver, key_pub, username),
+    #                   callback=callback)
+    result = \
+        __add_key_to_data_server_async(dataserver, key_pub, username)
+    callback(result)
+
 
 # setup processing pools
 __manager = multiprocessing.Manager()
