@@ -224,9 +224,9 @@ class LaunchProcess(object):
         sshfs_cmd = '/usr/local/bin/sshfs'
         sshfs_domain = Datamounts()[self._datamount]['server']['domain']
         if self._auth_type == 'username':
-            cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other %s@%s:~ /mnt/data\n' % (sshfs_cmd, self._username, sshfs_domain)
+            cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other %s@%s: /mnt/data\n' % (sshfs_cmd, self._username, sshfs_domain)
         else:
-            cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other "%s"@%s:~ /mnt/data\n' % (sshfs_cmd, self._email, sshfs_domain)
+            cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other "%s"@%s: /mnt/data\n' % (sshfs_cmd, self._email, sshfs_domain)
 
         # add custom boot-up script to cloud_init (eg. update an app, put a shortcut on the desktop)
         # as provided in Accounts()
@@ -302,7 +302,6 @@ class LaunchProcess(object):
             self._server_id = server_id
             self._process['server_add'] = 2
             self._continue()
-        logger.debug(body)
         req = OpenStackRequest(self._acc_name, 'POST', '/servers', body=body)
         make_request_async(req, callback)
 
@@ -318,11 +317,9 @@ class LaunchProcess(object):
                 logger.debug('got ip %s' % self._ip_address)
             except Exception, e:
                 logger.debug('havent got ip address')
-                logger.exception(e)
+                # logger.exception(e)
                 self.io_loop().add_timeout(IP_DELAY, self._do_server_ip_op)
-                #
-                # TODO: have a maximum termination ...
-                #
+                # TODO: have a maximum termination (time-out)
             if self._process['server_ip'] == 2:
                 self._continue()
         req = OpenStackRequest(self._acc_name,
@@ -358,7 +355,7 @@ class LaunchProcess(object):
         if self._auth_type == 'username':
             add_key_to_data_server_async(callback, self._datamount, ssh_key, username=self._username)
         else:
-            add_key_to_data_server_async(callback, self._datamount, ssh_key, email=self._email)
+            add_key_to_data_server_async(callback, self._datamount, ssh_key, username=self._email)
 
     def _do_server_ready_op(self):
         logger.debug('in _do_server_ready_op')
