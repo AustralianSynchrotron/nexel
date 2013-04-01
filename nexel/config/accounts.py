@@ -41,7 +41,7 @@ def __crawl():
     # crawl through sub-directories
     m = {}
     for account_name in os.listdir(accounts_path):
-        account_path = accounts_path + '/' + account_name
+        account_path = os.path.join(accounts_path, account_name)
         if not os.path.isdir(account_path):
             continue
         if RX_NAMES.match(account_name) is None:
@@ -50,7 +50,7 @@ def __crawl():
         # read auth.conf (if exists)
         try:
             auth = ConfigParser.ConfigParser()
-            auth.read(account_path + '/auth.conf')
+            auth.read(os.path.join(account_path, 'auth.conf'))
             tenant_id = auth.get('os-credentials', 'tenant-id')
             username = auth.get('os-credentials', 'username')
             password = auth.get('os-credentials', 'password')
@@ -67,11 +67,11 @@ def __crawl():
                            'machines': {}}
 
         # crawl through machines for this account
-        path_to_machines = account_path + '/machines'
+        path_to_machines = os.path.join(account_path, 'machines')
         if not os.path.isdir(path_to_machines):
             continue
         for machine_name in os.listdir(path_to_machines):
-            machine_path = path_to_machines + '/' + machine_name
+            machine_path = os.path.join(path_to_machines, machine_name)
             if not os.path.isdir(machine_path):
                 continue
             if RX_NAMES.match(machine_name) is None:
@@ -80,15 +80,16 @@ def __crawl():
             # read build.conf
             try:
                 build = ConfigParser.ConfigParser()
-                build.read(machine_path + '/build.conf')
+                build.read(os.path.join(machine_path, 'build.conf'))
                 vm_image_id = build.get('vm', 'image-id')
                 vm_flavor_id = build.get('vm', 'flavor-id')
-                build_script = __read_shell_script(machine_path + '/build.sh')
+                build_script = __read_shell_script(os.path.join(machine_path, 'build.sh'))
                 assert build_script is not None
                 m[account_name]['machines'][machine_name] = {}
-                m[account_name]['machines'][machine_name]['build'] = {'image_id': vm_image_id,
-                                                                      'flavor_id': vm_flavor_id,
-                                                                      'script': build_script}
+                m[account_name]['machines'][machine_name]['build'] = \
+                    {'image_id': vm_image_id,
+                     'flavor_id': vm_flavor_id,
+                     'script': build_script}
                 print m[account_name]['machines'][machine_name]['build']
             except Exception, e:
                 logger.exception(e)
@@ -97,15 +98,16 @@ def __crawl():
             # read boot.conf
             try:
                 boot = ConfigParser.ConfigParser()
-                boot.read(machine_path + '/boot.conf')
+                boot.read(os.path.join(machine_path, 'boot.conf'))
                 vm_snapshot_id = boot.get('vm', 'snapshot-id')
                 vm_flavor_id = boot.get('vm', 'flavor-id')
                 datamounts_datamount = boot.get('datamounts', 'datamount')
-                if not m[account_name]['machines'].has_key(machine_name):
+                if not machine_name in m[account_name]['machines']:
                     m[account_name]['machines'][machine_name] = {}
-                m[account_name]['machines'][machine_name]['boot'] = {'snapshot_id': vm_snapshot_id,
-                                                                     'flavor_id': vm_flavor_id,
-                                                                     'datamount': datamounts_datamount}
+                m[account_name]['machines'][machine_name]['boot'] = \
+                    {'snapshot_id': vm_snapshot_id,
+                     'flavor_id': vm_flavor_id,
+                     'datamount': datamounts_datamount}
             except Exception, e:
                 logger.exception(e)
                 continue

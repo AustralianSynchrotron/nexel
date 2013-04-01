@@ -43,7 +43,7 @@ def __crawl():
     # crawl through sub-directories
     m = {}
     for datamount_name in os.listdir(datamounts_path):
-        datamount_path = datamounts_path + '/' + datamount_name
+        datamount_path = os.path.join(datamounts_path, datamount_name)
         if not os.path.isdir(datamount_path):
             continue
         if RX_NAMES.match(datamount_name) is None:
@@ -51,7 +51,7 @@ def __crawl():
         # read auth.conf (if exists)
         try:
             auth = ConfigParser.ConfigParser()
-            auth.read(datamount_path + '/auth.conf')
+            auth.read(os.path.join(datamount_path, 'auth.conf'))
             server_domain = auth.get('server', 'domain')
             server_home_path = auth.get('server', 'home-path')
             root_username = auth.get('root', 'username')

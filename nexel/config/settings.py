@@ -35,7 +35,8 @@ def read(conf_path):
     d['os_auth_url'] = conf.get('os', 'auth-url')
     d['os_nova_url'] = conf.get('os', 'nova-url')
     d['accounts_path'] = __read_path(conf.get('config', 'accounts-path'), cwd)
-    d['datamounts_path'] = __read_path(conf.get('config', 'datamounts-path'), cwd)
+    d['datamounts_path'] = \
+        __read_path(conf.get('config', 'datamounts-path'), cwd)
 
     # update singleton
     Settings().clear()
