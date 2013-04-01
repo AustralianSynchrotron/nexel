@@ -40,13 +40,17 @@ def generate_key_async(callback):
 def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
     logger.debug('in __add_key_to_data_server_async [%d]' % os.getpid())
     if username is None:
-        auth_value = email
+        uid = email
     else:
-        auth_value = username
+        uid = username
     logger.debug('about to start paramiko')
-    domain = Datamounts[dataserver]['server']['domain']
-    login = Datamounts[dataserver]['root']['username']
-    path_to_key = Datamounts[dataserver]['root']['private_key']
+    try:
+        domain = Datamounts[dataserver]['server']['domain']
+        login = Datamounts[dataserver]['root']['username']
+        path_to_key = Datamounts[dataserver]['root']['private_key']
+    except Exception, e:
+        logger.exception(e)
+        return False
 
     # connect to datamount server
     try:
@@ -59,7 +63,7 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
         return False
 
     # check user is on the system, get id (if using email)
-    _, stdout, stderr = client.exec_command('id -u %s' % auth_value)
+    _, stdout, stderr = client.exec_command('id -u %s' % uid)
     if stderr.read() != '':
         client.close()
         return False
@@ -67,7 +71,8 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
         try:
             stdout = stdout.read().strip()
             user_id = str(long(stdout))
-        except:
+        except Exception, e:
+            logger.exception(e)
             client.close()
             return False
     else:
@@ -77,6 +82,7 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username, email):
 
     # check/create home and .ssh directories
     _, stdout, stderr = client.exec_command('mkdir -p /home/%s/.ssh' % user_id) # TODO: use value in Datamounts()
+    # maybe use correct user id for home dir and authorized_keys file?
     if stderr.read() != '':
         client.close()
         return False
