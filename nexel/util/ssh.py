@@ -38,7 +38,7 @@ def generate_key_async(callback):
     __pool.apply_async(__generate_key_async, callback=callback)
 
 
-def __add_key_to_data_server_async(dataserver, ssh_key, username):
+def __add_key_to_data_server_async(dataserver, ssh_key, uid):
     logger.debug('in __add_key_to_data_server_async [%d]' % os.getpid())
     try:
         domain = Datamounts()[dataserver]['server']['domain']
@@ -60,7 +60,7 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username):
 
     # get user's home dir
     _, stdout, stderr = \
-        client.exec_command('getent passwd "%s" | cut -d: -f6' % username)
+        client.exec_command('getent passwd "%s" | cut -d: -f6' % uid)
     stderr = stderr.read()
     if stderr != '':
         client.close()
@@ -73,13 +73,13 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username):
         client.close()
         return False
 
-    logger.debug('got user home dir: %s' % home)
+    # logger.debug('got user home dir: %s' % home)
     # check/create home and .ssh directories
     dotssh = join(home, '.ssh')
     command = '[ ! -d %s ] && mkdir -p %s '\
             '&& chown -R `id -u %s`:`id -g %s` %s' % \
-            (dotssh, dotssh, username, username, dotssh)
-    logger.debug(command)
+            (dotssh, dotssh, uid, uid, dotssh)
+    # logger.debug(command)
     _, stdout, stderr = \
         client.exec_command(command)
     stderr = stderr.read()
@@ -93,8 +93,8 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username):
     pubkey = ssh_key.strip().replace('\"', '\\\"')
     command = '[ -e %s ] && echo "%s" >> %s || '\
         '(echo "%s" > %s && chown`id -u %s`:`id -g %s` %s)' \
-        % (keys, pubkey, keys, pubkey, keys, username, username, keys)
-    logger.debug(command)
+        % (keys, pubkey, keys, pubkey, keys, uid, uid, keys)
+    # logger.debug(command)
     _, stdout, stderr = client.exec_command(command)
     stderr = stderr.read()
     if stderr != '':
@@ -108,12 +108,13 @@ def __add_key_to_data_server_async(dataserver, ssh_key, username):
 
 def add_key_to_data_server_async(callback, dataserver, key_pub, username):
     logger.debug('in add_key_to_data_server [%d]' % os.getpid())
-    #__pool.apply_async(__add_key_to_data_server_async,
-    #                   (dataserver, key_pub, username),
-    #                   callback=callback)
-    result = \
-        __add_key_to_data_server_async(dataserver, key_pub, username)
-    callback(result)
+    __pool.apply_async(__add_key_to_data_server_async,
+                       (dataserver, key_pub, username),
+                       callback=callback)
+    #sync method for debugging...
+    #result = \
+    #    __add_key_to_data_server_async(dataserver, key_pub, username)
+    #callback(result)
 
 
 # setup processing pools

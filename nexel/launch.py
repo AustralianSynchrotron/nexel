@@ -283,7 +283,7 @@ class LaunchProcess(object):
                                         'nexel-username': self._username,
                                         'nexel-password': self._password},
                            'key_name': self._key_name, }}
-        logger.debug(cloud_init)
+        # logger.debug(cloud_init)
 
         def callback(resp):
             try:
