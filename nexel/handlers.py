@@ -55,6 +55,9 @@ class MachineInfo(NexelRequestHandler):
 
 
 class SnapshotActions(NexelRequestHandler):
+    def get(self, acc_name, mach_name):
+        raise NotImplementedError
+
     @asynchronous
     def post(self, acc_name, mach_name):
         # create and start snapshot process
@@ -70,6 +73,9 @@ class SnapshotActions(NexelRequestHandler):
         self.set_status(202)
         self.write({'output': {'snapshot_id': sp.snapshot_id()}})
         self.finish()
+
+    def delete(self, acc_name, mach_name):
+        raise NotImplementedError
 
 
 class LaunchInstance(NexelRequestHandler):
@@ -136,7 +142,7 @@ class ServerActions(NexelRequestHandler):
                 raise HTTPError(resp.code)
             self.write({'output': json.loads(resp.body)})
             self.finish()
-        req = OpenStackRequest(acc_name, 'GET', '/servers/'+srv_id)
+        req = OpenStackRequest(acc_name, 'GET', '/servers/' + srv_id)
         make_request_async(req, callback)
 
     @asynchronous
