@@ -20,6 +20,7 @@ setup(
         'tornado >= 2.4.1',
         'paramiko >= 1.9.0',
         'pycrypto >= 2.5',
+        'pyinotify >= 0.9.4',
         'formencode >= 1.2.6',
         'requests >= 1.0.2',
     ],
