@@ -2,7 +2,7 @@ import base64
 from Crypto.Random import random
 import datetime
 import json
-#import logging
+import logging
 from nexel.config.accounts import Accounts
 from nexel.config.settings import Settings
 import string
@@ -16,6 +16,8 @@ CHARS = string.digits + string.letters
 BUILD_DELAY = datetime.timedelta(seconds=30)
 SNAPSHOT_DELAY = datetime.timedelta(seconds=30)
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 def random_chars(num_chars):
     return ''.join([random.choice(CHARS) for _ in range(num_chars)])
@@ -176,15 +178,19 @@ class SnapshotProcess(object):
                                         'nexel-ready': 'False'}}}
         def callback(resp):
             try:
+                logger.debug(resp.body)
                 if resp.code == 413:
+                    logger.error('error quota exceeded 413')
                     self._error(413)
                     return
                 j = json.loads(resp.body)
                 server_id = j['server']['id']
                 assert(server_id != '')
             except:
+                logger.exception(e)
                 self._error(500)
                 return
+            logger.debug("Added the server succesfully")
             self._server_id = server_id
             self._process['server_add'] = 2
             self._continue()
@@ -222,6 +228,7 @@ class SnapshotProcess(object):
             except:
                 self._error(500)
                 return
+            logger.debug("Created the snapshot succesfully")
             self._process['snapshot_create'] = 2
             self._continue()
         url = '/servers/%s/action' % self._server_id
@@ -258,8 +265,9 @@ class SnapshotProcess(object):
         self._process['snapshot_save'] = 1
         # save self._os_snapshot_id into boot.conf :: vm :: snapshot-id
         # file may not exist!, could be in a strange state
-        print self._os_snapshot_id
+        logger.debug("Snapshot ID: "+self._os_snapshot_id)
         self._process['snapshot_save'] = 2
+        logger.debug("Saved the snapshot succesfully")
         self._continue()
 
     def _do_server_kill(self):
@@ -270,6 +278,7 @@ class SnapshotProcess(object):
                 self._error(500)
                 return
             self._process['server_kill'] = 2
+            logger.debug("Killed the server succesfully")
             self._continue()
         url = '/servers/%s' % self._server_id
         req = OpenStackRequest(self._acc_name, 'DELETE', url)
