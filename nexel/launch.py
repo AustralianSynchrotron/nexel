@@ -15,6 +15,7 @@ from tornado.web import HTTPError
 from nexel.util.openstack import OpenStackRequest, make_request_async
 from nexel.util.ssh import generate_key_async, add_key_to_data_server_async
 import uuid
+import os
 
 RX_USERNAME = re.compile(r'^[0-9a-zA-Z\-\_\.]+$')
 RX_USERCHAR = re.compile(r'^[0-9a-zA-Z\-\_\.]{1}$')
@@ -234,14 +235,14 @@ class LaunchProcess(object):
         # setup a monitor and kill script
 
         # overwrite the standard NoMachine key files
-        privNoMachineKeyFile = open(Settings()['nx_key_path']+"/nxprivate.key", "r")
+        privNoMachineKeyFile = open(os.path.join(Settings()['nx_key_path'],"nxprivate.key"), "r")
         privNoMachineKey = privNoMachineKeyFile.read()
         privNoMachineKeyFile.close()
         privNoMachineKey += 'EOF\n'
         cloud_init += 'cat > /usr/NX/share/keys/default.id_dsa.key << EOF\n'
         cloud_init += privNoMachineKey
 
-        pubNoMachineKeyFile = open(Settings()['nx_key_path']+"/nxpublic.key", "r")
+        pubNoMachineKeyFile = open(os.path.join(Settings()['nx_key_path'],"nxpublic.key"), "r")
         pubNoMachineKey = pubNoMachineKeyFile.read()
         pubNoMachineKeyFile.close()
         pubNoMachineKey += 'EOF\n'
