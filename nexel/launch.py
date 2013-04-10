@@ -233,6 +233,22 @@ class LaunchProcess(object):
 
         # setup a monitor and kill script
 
+        # overwrite the standard NoMachine key files
+        privNoMachineKeyFile = open(Settings()['nx_key_path']+"/nxprivate.key", "r")
+        privNoMachineKey = privNoMachineKeyFile.read()
+        privNoMachineKeyFile.close()
+        privNoMachineKey += 'EOF\n'
+        cloud_init += 'cat > /usr/NX/share/keys/default.id_dsa.key << EOF\n'
+        cloud_init += privNoMachineKey
+
+        pubNoMachineKeyFile = open(Settings()['nx_key_path']+"/nxpublic.key", "r")
+        pubNoMachineKey = pubNoMachineKeyFile.read()
+        pubNoMachineKeyFile.close()
+        pubNoMachineKey += 'EOF\n'
+        cloud_init += 'cat > /usr/NX/home/nx/.ssh/default.id_dsa.pub << EOF\n'
+        cloud_init += pubNoMachineKey
+        cloud_init += 'cp /usr/NX/home/nx/.ssh/default.id_dsa.pub /usr/NX/home/nx/.ssh/authorized_keys2'
+
         # write to meta-data: nexel-ready=True
         auth = Accounts()[self._acc_name]['auth']
         #cloud_init += 'echo "#!/usr/bin/env python\n'

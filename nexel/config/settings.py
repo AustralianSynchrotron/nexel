@@ -37,6 +37,7 @@ def read(conf_path):
     d['accounts_path'] = __read_path(conf.get('config', 'accounts-path'), cwd)
     d['datamounts_path'] = \
         __read_path(conf.get('config', 'datamounts-path'), cwd)
+    d['nx_key_path'] = __read_path(conf.get('nomachine', 'nx-key-path'), cwd)
 
     # update singleton
     Settings().clear()
