@@ -1,3 +1,10 @@
+#------------------------------------------------------------
+#                            NEXEL
+#
+#   Performs the asynchronous launch of a Nectar Instance
+#
+#------------------------------------------------------------
+
 import base64
 import crypt
 from Crypto.Random import random
@@ -14,9 +21,12 @@ from tornado.ioloop import IOLoop
 from tornado.web import HTTPError
 from nexel.util.openstack import OpenStackRequest, make_request_async
 from nexel.util.ssh import generate_key_async, add_key_to_data_server_async
+from jinja2 import Environment, FileSystemLoader
 import uuid
 import os
 
+
+# global constants for this script
 RX_USERNAME = re.compile(r'^[0-9a-zA-Z\-\_\.]+$')
 RX_USERCHAR = re.compile(r'^[0-9a-zA-Z\-\_\.]{1}$')
 DEFAULT_USERNAME = 'user'
@@ -27,15 +37,28 @@ BOOT_DELAY = datetime.timedelta(seconds=10)
 parse_email = formencode.validators.Email.to_python
 
 
+# the logging system
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
+#-------------------------------------
+#          Global methods
+#-------------------------------------
 def random_chars(num_chars):
+    """
+    Returns a string consisting of random characters.
+    num_chars : The number of random characters.
+    """
     return ''.join([random.choice(CHARS) for _ in range(num_chars)])
 
 
 def email_to_username(email):
+    """
+    Converts and returns an email address to a username by stripping off all characters behind @.
+    Checks if the username is alphanumeric. If not, the default username is returned.
+    email : The email address which should be converted to a username.
+    """
     prefix = email.split('@')[0]
     username = ''
     for c in prefix:
@@ -47,16 +70,44 @@ def email_to_username(email):
 
 
 def generate_id():
+    """
+    Generates and returns a launch ID starting with "L" from random characters and a unique ID.
+    """
     return 'L-%s-%s' % (random_chars(10), uuid.uuid1().hex)
 
 
+#-------------------------------------
+#         LaunchProcess class
+#-------------------------------------
 # TODO: add an event to delete all expired launches
 class LaunchProcess(object):
+    """
+    The main launch process class.
+    """
+
     __current_processes = {}
 
     def __init__(self, acc_name, mach_name, auth_type, auth_value):
-        self._acc_name = acc_name # TODO: check acc_name
-        self._mach_name = mach_name # TODO: check mach_name
+        """
+        The constructor of the launch process class.
+        acc_name   : The name of the Nexel user account that launches the VM.
+        mach_name  : The name of the Nexel machine that should be launched.
+        auth_type  : The type of the authentication. Either "username" or "email".
+        auth_value : Depending on the authentication type, this holds either
+                     the username or the email value.
+        """
+        # check if the account and machine names exist
+        if acc_name not in Accounts():
+            logger.error('Cannot launch the instance: The account "'+acc_name+'" does not exist!')
+            raise HTTPError(400)
+
+        if mach_name not in Accounts()[acc_name]['machines']:
+            logger.error('Cannot launch the instance: The machine "'+mach_name+'" does not exist!')
+            raise HTTPError(400)
+
+        # prepare the launch process and add it to the list of current processes
+        self._acc_name = acc_name
+        self._mach_name = mach_name
         self._auth_type = auth_type
         self._username = None
         self._email = None
@@ -93,36 +144,51 @@ class LaunchProcess(object):
         self.__current_processes[self._launch_id] = self
         print self.__current_processes
 
+
     @classmethod
     def io_loop(cls):
+        """Returns the instance of the Tornado IOLoop singleton."""
         return IOLoop().instance()
 
     @classmethod
     def all_ids(cls):
+        """Returns a list of all launch IDs."""
         return cls.__current_processes.keys()
 
     @classmethod
     def get(cls, launch_id):
+        """
+        Returns a list of all launch processes if the specified launch ID doesn't exist.
+        Otherwise returns the launch process of the given launch ID.
+        launch_id : The launch ID
+        """
         if not launch_id in cls.__current_processes:
             return None
         return cls.__current_processes[launch_id]
 
+
     def launch_id(self):
+        """Returns the ID of this launch process."""
         return self._launch_id
 
     def account_name(self):
+        """Returns the account name that was used to create this launch process."""
         return self._acc_name
 
     def server_id(self):
+        """Returns the unique ID of the launched instance."""
         return self._server_id
 
     def ip_address(self):
+        """Returns the IP address of the launched instance."""
         return self._ip_address
 
     def server_ready(self):
+        """Returns True if the instance is running. Otherwise returns False."""
         return self._server_ready
 
     def completed(self):
+        """Returns True if the instance has been launched successfully. Otherwise returns False."""
         if (self._process['keygen'] == 2 and
             self._process['server_add'] == 2 and
             self._process['server_ip'] == 2 and
@@ -132,41 +198,53 @@ class LaunchProcess(object):
         return False
 
     def _error(self, code):
+        """
+        Sets the error code of this launch process to the specified code.
+        code : The error code that should be set.
+        """
         self._error_code = code
 
     def error_code(self):
+        """Returns the current error code of this launch process."""
         return self._error_code
 
+
     def start(self):
-        print 'in start()'
+        """Starts the launch process by adding the _continue() method to Tornado's IO loop."""
+        logger.debug('Adding the _continue() method to Tornado\'s IO loop')
         self.io_loop().add_callback(self._continue)
 
+
     def _continue(self):
-        logger.debug('in _continue()')
-        # 1. keygen
+        """This method calls all steps involved in launching an instance."""
+
+        # 1. generate the public and private key for mounting the data
         if self._process['keygen'] == 0:
             return self._do_keygen()
 
-        # 2. server_add
+        # 2. launches the instance on the Nectar cloud
         if self._process['server_add'] == 0:
             return self._do_server_add()
 
-        # 3. server_ip
+        # 3. retrieves the instance's IP address
         if self._process['server_ip'] == 0:
             return self._do_server_ip()
 
-        # 4. datamount_add
+        # 4. adds the public key to the data server
         if self._process['datamount_add'] == 0:
             return self._do_datamount_add()
 
-        # 5. server_ready
+        # 5. sets the instance's server_ready flag to "true"
         if self._process['server_ready'] == 0:
             return self._do_server_ready()
 
-        print 'done launch for %s' % self._launch_id
+        logger.debug('Done launch for %s' % self._launch_id)
+        logger.debug('Instance is ready')
+
 
     def _do_keygen(self):
-        logger.debug('in _do_keygen')
+        """Generate the public and private key for mounting the data"""
+        logger.debug('(1) Generating the key pair...')
         self._process['keygen'] = 1
 
         # check for datamount
@@ -177,13 +255,20 @@ class LaunchProcess(object):
 
         # generate keys asynchronously
         def callback(keys):
+            """
+            Callback method for the asynchronous generation of the key pair
+            keys : the generated private and public keys
+            """
             self._key_pub, self._key_priv = keys
             self._process['keygen'] = 2
+            logger.debug('(1) ...key pair generation successful')
             self._continue()
         generate_key_async(callback)
 
+
     def _do_server_add(self):
-        logger.debug('in _do_server_add')
+        """Launches the instance on the Nectar cloud"""
+        logger.debug('(2) Launching the instance on the Nectar cloud...')
         self._process['server_add'] = 1
 
         # generate a random password for the session, encrypt for linux
@@ -201,95 +286,41 @@ class LaunchProcess(object):
                      'password': self._password}
         jdata = json.dumps(echo_data, separators=(',', ':'))
 
-        # construct cloud-init script
-        cloud_init  = '#!/bin/bash\n'
-        cloud_init += 'IP_ADDRESS=`curl http://169.254.169.254/2009-04-04/meta-data/local-ipv4`\n'
-        cloud_init += 'echo "nexel(%s): start"\n' % self._acc_name
-        cloud_init += 'echo "nexel(%s): data=%s"\n' % (self._acc_name, jdata.replace('\"', '\\\"'))
-
-        # provide user access via ssh
-        cloud_init += 'useradd -p %s %s\n' % (password_enc, self._username)
-        cloud_init += 'sed -i \'s/^PasswordAuthentication.*$/PasswordAuthentication yes/g\' /etc/ssh/sshd_config\n'
-        cloud_init += '/etc/init.d/sshd restart\n'
-
-        # correct the hostname
-        cloud_init += 'echo "$IP_ADDRESS %s %s.localdomain" >> /etc/hosts\n' % (self._mach_name, self._mach_name)
-
-        # add key and mount sshfs
-        # sshfs option: -o ciphers=arcfour
-        cloud_init += 'mkdir -p ~/.ssh\n'
-        cloud_init += 'echo "%s" > ~/.ssh/id_rsa\n' % self._key_priv
-        cloud_init += 'chmod 600 ~/.ssh/id_rsa\n'
-        cloud_init += 'mkdir /mnt/data\n'
-        # TODO: put into Datamount() configuration
-        sshfs_cmd = '/usr/local/bin/sshfs'
-        sshfs_domain = Datamounts()[self._datamount]['server']['domain']
+        # set the sshfs datamount settings
+        sshfsUser = ""
         if self._auth_type == 'username':
-            cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other %s@%s: /mnt/data\n' % (sshfs_cmd, self._username, sshfs_domain)
+            sshfsUser = self._username
         else:
-            cloud_init += '%s -o StrictHostKeyChecking=no -o allow_other "%s"@%s: /mnt/data\n' % (sshfs_cmd, self._email, sshfs_domain)
+            sshfsUser = '"%s"' % self._email
+        sshfs_domain = Datamounts()[self._datamount]['server']['domain']
 
-        # add custom boot-up script to cloud_init (eg. update an app, put a shortcut on the desktop)
-        # as provided in Accounts()
-
-        # setup a monitor and kill script
-
-        # overwrite the standard NoMachine key files
-        privNoMachineKeyFile = open(os.path.join(Settings()['nx_key_path'],"nxprivate.key"), "r")
-        privNoMachineKey = privNoMachineKeyFile.read()
-        privNoMachineKeyFile.close()
-        privNoMachineKey += 'EOF\n'
-        cloud_init += 'cat > /usr/NX/share/keys/default.id_dsa.key << EOF\n'
-        cloud_init += privNoMachineKey
-
-        pubNoMachineKeyFile = open(os.path.join(Settings()['nx_key_path'],"nxpublic.key"), "r")
-        pubNoMachineKey = pubNoMachineKeyFile.read()
-        pubNoMachineKeyFile.close()
-        pubNoMachineKey += 'EOF\n'
-        cloud_init += 'cat > /usr/NX/home/nx/.ssh/default.id_dsa.pub << EOF\n'
-        cloud_init += pubNoMachineKey
-        cloud_init += 'cp /usr/NX/home/nx/.ssh/default.id_dsa.pub /usr/NX/home/nx/.ssh/authorized_keys2'
-
-        # write to meta-data: nexel-ready=True
+        # get Nexel authentication and machine data
         auth = Accounts()[self._acc_name]['auth']
-        #cloud_init += 'echo "#!/usr/bin/env python\n'
-        cloud_init += 'echo "import urllib2 # adapt for python 3+\n' #TODO
-        cloud_init += 'import json\n'
-        cloud_init += '\n'
-        cloud_init += 'tenant_id = \'%s\'\n' % auth['tenant_id']
-        cloud_init += 'username = \'%s\'\n' % auth['username']
-        cloud_init += 'password = \'%s\'\n' % auth['password']
-        cloud_init += 'auth_url = \'%s\'\n' % Settings()['os_auth_url']
-        cloud_init += 'nova_url = \'%s\'\n' % Settings()['os_nova_url']
-        cloud_init += '\n'
-        cloud_init += 'headers = {\'Content-Type\': \'application/json\'}\n'
-        cloud_init += 'body = {\'auth\' :{\'passwordCredentials\': {\'username\': username, \'password\': password}, \'tenantId\': tenant_id}}\n'
-        cloud_init += 'url = auth_url+\'/tokens\'\n'
-        cloud_init += 'req = urllib2.Request(url, headers=headers, data=json.dumps(body))\n'
-        cloud_init += 'resp = urllib2.urlopen(req)\n'
-        cloud_init += 'j = json.loads(resp.read())\n'
-        cloud_init += 'token = j[\'access\'][\'token\'][\'id\']\n'
-        cloud_init += '\n'
-        cloud_init += 'url = \'http://169.254.169.254/openstack/2012-08-10/meta_data.json\'\n'
-        cloud_init += 'req = urllib2.Request(url)\n'
-        cloud_init += 'resp = urllib2.urlopen(req)\n'
-        cloud_init += 'j = json.loads(resp.read())\n'
-        cloud_init += 'server_id = j[\'uuid\']\n'
-        cloud_init += '\n'
-        cloud_init += 'headers[\'X-Auth-Token\'] = token\n'
-        cloud_init += 'body = {\'metadata\': {\'nexel-ready\': \'True\'}}\n'
-        cloud_init += 'url = nova_url+\'/\'+tenant_id+\'/servers/\'+server_id+\'/metadata\'\n'
-        cloud_init += 'req = urllib2.Request(url, headers=headers, data=json.dumps(body))\n'
-        cloud_init += 'resp = urllib2.urlopen(req)\n'
-        cloud_init += '" > ~/nexel-ready.py\n'
+        mach = Accounts()[self._acc_name]['machines'][self._mach_name]['boot']
 
-        # finish script
-        cloud_init += 'echo "nexel(%s): end"\n' % self._acc_name
-        cloud_init += 'python ~/nexel-ready.py\n'
-        cloud_init += 'rm -rf ~/nexel-ready.py\n'
+        # construct cloud-init script from template
+        cloud_init_env = Environment(loader=FileSystemLoader(
+                          os.path.join(Settings()['accounts_path'], self._acc_name,
+                                       'machines', self._mach_name)))
+        cloud_init_template = cloud_init_env.get_template(mach['cloud_init'])
+        cloud_init_vars = {
+                            'accountName'    : self._acc_name,
+                            'echoData'       : jdata.replace('\"', '\\\"'),
+                            'passwordEnc'    : password_enc,
+                            'username'       : self._username,
+                            'machineName'    : self._mach_name,
+                            'keyPrivate'     : self._key_priv,
+                            'sshfsUser'      : sshfsUser,
+                            'sshfsDomain'    : sshfs_domain,
+                            'tenantId'       : auth['tenant_id'],
+                            'nectarUsername' : auth['username'],
+                            'nectarPassword' : auth['password'],
+                            'osAuthURL'      : Settings()['os_auth_url'],
+                            'osNovaURL'      : Settings()['os_nova_url']
+                          }
+        cloud_init = cloud_init_template.render(cloud_init_vars)
 
         # boot the server, get srv_id
-        mach = Accounts()[self._acc_name]['machines'][self._mach_name]['boot']
         body = {'server': {'name': self._mach_name,
                            'imageRef': mach['snapshot_id'],
                            'flavorRef': mach['flavor_id'],
@@ -300,13 +331,16 @@ class LaunchProcess(object):
                                         'nexel-username': self._username,
                                         'nexel-password': self._password},
                            'key_name': self._key_name, }}
-        # logger.debug(cloud_init)
 
         def callback(resp):
+            """
+            Callback method for the asynchronous launch request to the Nectar cloud
+            resp : the response of the Nectar cloud
+            """
             try:
                 logger.debug(resp.body)
                 if resp.code == 413:
-                    logger.error('error quota exceeded 413')
+                    logger.error('Exceeded the quota of concurrently running instances at the Nectar cloud!')
                     self._error(413)
                     return
                 j = json.loads(resp.body)
@@ -318,38 +352,45 @@ class LaunchProcess(object):
                 return
             self._server_id = server_id
             self._process['server_add'] = 2
+            logger.debug('(2) ...launch of the instance successful (%s)' % self._server_id)
             self._continue()
         req = OpenStackRequest(self._acc_name, 'POST', '/servers', body=body)
         make_request_async(req, callback)
 
+
     def _do_server_ip_op(self):
-        logger.debug('in _do_server_ip_op')
+        """Retrieves the instance's IP address"""
 
         def callback(resp):
+            """
+            Callback method for the asynchronous retrieval of the IP address
+            resp : the response of the Nectar cloud
+            """
             try:
                 j = json.loads(resp.body)
                 addr = j['server']['addresses']
                 self._ip_address = addr[addr.keys()[0]][0]['addr']
                 self._process['server_ip'] = 2
-                logger.debug('got ip %s' % self._ip_address)
             except Exception, e:
-                logger.debug('havent got ip address')
-                # logger.exception(e)
+                logger.debug('...waiting...')
                 self.io_loop().add_timeout(IP_DELAY, self._do_server_ip_op)
                 # TODO: have a maximum termination (time-out)
             if self._process['server_ip'] == 2:
+                logger.debug('(3) ...got the IP address (%s)' % self._ip_address)
                 self._continue()
-        req = OpenStackRequest(self._acc_name,
-                               'GET', '/servers/' + self._server_id)
+        req = OpenStackRequest(self._acc_name, 'GET', '/servers/' + self._server_id)
         make_request_async(req, callback)
 
     def _do_server_ip(self):
-        logger.debug('in _do_server_ip')
+        """Adds the IP address retrieval method to Tornado's IO loop with a delay"""
+        logger.debug('(3) Retrieving the IP address of the instance...')
         self._process['server_ip'] = 1
         self.io_loop().add_timeout(IP_DELAY, self._do_server_ip_op)
 
+
     def _do_datamount_add(self):
-        logger.debug('in _do_datamount_add')
+        """Adds the public key to the data server"""
+        logger.debug('(4) Adding the public key to the data server...')
         self._process['datamount_add'] = 1
 
         # check for datamount
@@ -364,30 +405,38 @@ class LaunchProcess(object):
         comment = '(Generated by Nexel on %s)' % datetime.datetime.now().isoformat()
         ssh_key = '%s %s %s' % (ip_protect, self._key_pub, comment)
 
-        # generate keys asynchronously
         def callback(result):
-            # result = True/False
+            """
+            Callback method for the asynchronous adding of the public key to the data server
+            result : the result as a Boolean value
+            """
             self._process['datamount_add'] = 2
+            logger.debug('(4) ...key has been added successfully')
             self._continue()
         if self._auth_type == 'username':
             add_key_to_data_server_async(callback, self._datamount, ssh_key, username=self._username)
         else:
             add_key_to_data_server_async(callback, self._datamount, ssh_key, username=self._email)
 
+
     def _do_server_ready_op(self):
-        logger.debug('in _do_server_ready_op')
+        """Sets the instance's server_ready flag to 'true'"""
 
         def callback(resp):
+            """
+            Callback method to set the server_ready flag asynchronously
+            resp : the response of the Nectar cloud
+            """
             try:
                 j = json.loads(resp.body)
                 if j['meta']['nexel-ready'].lower() == 'true':
                     self._server_ready = True
                     self._process['server_ready'] = 2
-                    logger.debug('server is ready')
             except Exception, e:
                 logger.exception(e)
                 pass
             if self._process['server_ready'] == 2:
+                logger.debug('(5) ...done. Set the server_ready flag to true.')
                 self._continue()
                 return
             self.io_loop().add_timeout(BOOT_DELAY, self._do_server_ready_op)
@@ -395,6 +444,7 @@ class LaunchProcess(object):
         make_request_async(req, callback)
 
     def _do_server_ready(self):
-        logger.debug('in _do_server_ready')
+        """Adds the method to set the server_ready flat to Tornado's IO loop with a delay"""
+        logger.debug('(5) Waiting for the launch of the instance to complete...')
         self._process['server_ready'] = 1
         self.io_loop().add_timeout(BOOT_DELAY, self._do_server_ready_op)
