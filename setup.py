@@ -23,6 +23,8 @@ setup(
         'pyinotify >= 0.9.4',
         'formencode >= 1.2.6',
         'requests >= 1.0.2',
+        'jinja2 >= 2.6',
+
     ],
     classifiers=[
         'Environment :: OpenStack',
