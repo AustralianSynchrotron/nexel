@@ -29,6 +29,7 @@ def http_success(code):
 def login_async(acc_name, callback_final):
     def callback(resp):
         if not http_success(resp.code):
+            logger.error("Login to Nectar failed!")
             raise HTTPError(resp.code)
         try:
             j = json.loads(resp.body)

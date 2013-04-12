@@ -238,6 +238,7 @@ class GetInstanceInfo(NexelRequestHandler):
             raise HTTPError(404)
         out = {'account_name': lp.account_name(),
                'server_id': '',
+               'status': lp.status(),
                'error_code': 0}
         err = lp.error_code()
         if err is not None:

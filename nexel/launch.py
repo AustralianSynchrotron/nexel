@@ -209,6 +209,14 @@ class LaunchProcess(object):
         return self._error_code
 
 
+    def status(self):
+        """Returns the current launch status as an integer value."""
+        statusSum = 0
+        for key, value in self._process.iteritems():
+            statusSum += value
+        return statusSum/2
+        
+
     def start(self):
         """Starts the launch process by adding the _continue() method to Tornado's IO loop."""
         logger.debug('Adding the _continue() method to Tornado\'s IO loop')
