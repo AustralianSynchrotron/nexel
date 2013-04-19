@@ -236,10 +236,13 @@ class GetInstanceInfo(NexelRequestHandler):
         lp = LaunchProcess.get(launch_id)
         if lp is None:
             raise HTTPError(404)
+        ipAddr = ""
+        if lp.ip_address() != None:
+            ipAddr = lp.ip_address()
         out = {'account_name': lp.account_name(),
                'server_id': '',
                'status': lp.status(),
-               'ip_address': lp.ip_address(),
+               'ip_address': ipAddr,
                'error_code': 0}
         err = lp.error_code()
         if err is not None:

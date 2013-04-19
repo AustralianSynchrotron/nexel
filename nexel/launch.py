@@ -24,6 +24,7 @@ from nexel.util.ssh import generate_key_async, add_key_to_data_server_async
 from jinja2 import Environment, FileSystemLoader
 import uuid
 import os
+import time
 
 
 # global constants for this script
@@ -31,8 +32,8 @@ RX_USERNAME = re.compile(r'^[0-9a-zA-Z\-\_\.]+$')
 RX_USERCHAR = re.compile(r'^[0-9a-zA-Z\-\_\.]{1}$')
 DEFAULT_USERNAME = 'user'
 CHARS = string.digits + string.letters
-IP_DELAY = datetime.timedelta(seconds=5)
-BOOT_DELAY = datetime.timedelta(seconds=10)
+IP_DELAY = datetime.timedelta(seconds=int(Settings()['server_ip_refresh']))
+BOOT_DELAY = datetime.timedelta(seconds=int(Settings()['server_ready_refresh']))
 
 parse_email = formencode.validators.Email.to_python
 
@@ -127,6 +128,8 @@ class LaunchProcess(object):
         except Exception, e:
             logger.exception(e)
             raise HTTPError(400)
+        self._cancel_launch = False
+        self._launch_timeout_handle = None
         self._launch_id = generate_id()
         self._created = datetime.datetime.now()
         self._key_pub = None
@@ -210,7 +213,14 @@ class LaunchProcess(object):
 
 
     def status(self):
-        """Returns the current launch status as an integer value."""
+        """
+        Returns the current launch status as an integer value.
+        Values greater than 0 indicate a lunch status.
+        The value -1 indicates that the launch process timed out.
+        """
+        if self._cancel_launch:
+            return -1
+
         statusSum = 0
         for key, value in self._process.iteritems():
             statusSum += value
@@ -218,9 +228,30 @@ class LaunchProcess(object):
         
 
     def start(self):
-        """Starts the launch process by adding the _continue() method to Tornado's IO loop."""
-        logger.debug('Adding the _continue() method to Tornado\'s IO loop')
+        """Starts the launch process by:
+            - adding the _timeout() method to  Tornado's IO loop
+            - adding the _continue() method to Tornado's IO loop
+        """
+        logger.debug('Adding the _timeout() and _continue() methods to Tornado\'s IO loop')
+        self._launch_timeout_handle = self.io_loop().add_timeout(datetime.timedelta(seconds=int(Settings()['launch_timeout'])), self._timeout)
         self.io_loop().add_callback(self._continue)
+
+
+    def _timeout(self):
+        """
+        This method is called when the launch process exceeds the specified time threshold.
+        It stops the launch and terminates the instance.
+        """
+        logger.debug('Timeout of the launch process reached. Stopping the process.')
+        self._cancel_launch = True
+
+        def callback(resp):
+            logger.debug('Terminated the instance.')
+
+        if self._server_id != None:
+            req = OpenStackRequest(self._acc_name, 'DELETE', '/servers/'+self._server_id)
+            make_request_async(req, callback)
+
 
 
     def _continue(self):
@@ -231,20 +262,26 @@ class LaunchProcess(object):
             return self._do_keygen()
 
         # 2. launches the instance on the Nectar cloud
-        if self._process['server_add'] == 0:
+        if (not self._cancel_launch) and (self._process['server_add'] == 0):
             return self._do_server_add()
 
         # 3. retrieves the instance's IP address
-        if self._process['server_ip'] == 0:
+        if (not self._cancel_launch) and (self._process['server_ip'] == 0):
             return self._do_server_ip()
 
         # 4. adds the public key to the data server
-        if self._process['datamount_add'] == 0:
+        if (not self._cancel_launch) and (self._process['datamount_add'] == 0):
             return self._do_datamount_add()
 
         # 5. sets the instance's server_ready flag to "true"
-        if self._process['server_ready'] == 0:
+        if (not self._cancel_launch) and (self._process['server_ready'] == 0):
             return self._do_server_ready()
+
+        if self._cancel_launch:
+            return
+
+        # Stop the timeout countdown
+        self.io_loop().remove_timeout(self._launch_timeout_handle)
 
         logger.debug('Done launch for %s' % self._launch_id)
         logger.debug('Instance is ready')
@@ -312,19 +349,21 @@ class LaunchProcess(object):
                                        'machines', self._mach_name)))
         cloud_init_template = cloud_init_env.get_template(mach['cloud_init'])
         cloud_init_vars = {
-                            'accountName'    : self._acc_name,
-                            'echoData'       : jdata.replace('\"', '\\\"'),
-                            'passwordEnc'    : password_enc,
-                            'username'       : self._username,
-                            'machineName'    : self._mach_name,
-                            'keyPrivate'     : self._key_priv,
-                            'sshfsUser'      : sshfsUser,
-                            'sshfsDomain'    : sshfs_domain,
-                            'tenantId'       : auth['tenant_id'],
-                            'nectarUsername' : auth['username'],
-                            'nectarPassword' : auth['password'],
-                            'osAuthURL'      : Settings()['os_auth_url'],
-                            'osNovaURL'      : Settings()['os_nova_url']
+                            'accountName'      : self._acc_name,
+                            'echoData'         : jdata.replace('\"', '\\\"'),
+                            'passwordEnc'      : password_enc,
+                            'username'         : self._username,
+                            'machineName'      : self._mach_name,
+                            'keyPrivate'       : self._key_priv,
+                            'sshfsUser'        : sshfsUser,
+                            'sshfsDomain'      : sshfs_domain,
+                            'tenantId'         : auth['tenant_id'],
+                            'nectarUsername'   : auth['username'],
+                            'nectarPassword'   : auth['password'],
+                            'osAuthURL'        : Settings()['os_auth_url'],
+                            'osNovaURL'        : Settings()['os_nova_url'],
+                            'initShutdown'     : str(int(Settings()['init_shutdown'])/60),
+                            'nxLogoutShutdown' : str(int(Settings()['nx_logout_shutdown'])/60)
                           }
         cloud_init = cloud_init_template.render(cloud_init_vars)
 
@@ -380,9 +419,9 @@ class LaunchProcess(object):
                 self._ip_address = addr[addr.keys()[0]][0]['addr']
                 self._process['server_ip'] = 2
             except Exception, e:
-                logger.debug('...waiting...')
-                self.io_loop().add_timeout(IP_DELAY, self._do_server_ip_op)
-                # TODO: have a maximum termination (time-out)
+                if not self._cancel_launch:
+                    logger.debug('...waiting...')
+                    self.io_loop().add_timeout(IP_DELAY, self._do_server_ip_op)
             if self._process['server_ip'] == 2:
                 logger.debug('(3) ...got the IP address (%s)' % self._ip_address)
                 self._continue()
@@ -428,7 +467,7 @@ class LaunchProcess(object):
 
 
     def _do_server_ready_op(self):
-        """Sets the instance's server_ready flag to 'true'"""
+        """Checks if the nexel-ready flag is true. If it is, the instance has finished booting"""
 
         def callback(resp):
             """
@@ -447,7 +486,8 @@ class LaunchProcess(object):
                 logger.debug('(5) ...done. Set the server_ready flag to true.')
                 self._continue()
                 return
-            self.io_loop().add_timeout(BOOT_DELAY, self._do_server_ready_op)
+            if not self._cancel_launch:
+                self.io_loop().add_timeout(BOOT_DELAY, self._do_server_ready_op)
         req = OpenStackRequest(self._acc_name, 'GET', '/servers/'+self._server_id+'/metadata/nexel-ready')
         make_request_async(req, callback)
 

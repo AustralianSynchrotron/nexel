@@ -25,6 +25,7 @@ Required Python packages:
 - PyCrypto 2.5+ (https://www.dlitz.net/software/pycrypto/)
 - FormEncode 1.2.6+ (http://www.formencode.org/)
 - Requests 1.0.2+ (http://www.python-requests.org/)
+- Jinja2 2.6+ (http://jinja.pocoo.org/)
 
 Optional Python packages:
 
@@ -49,6 +50,5 @@ On Ubuntu 12.10 (as user):
 TODO:
 
 - Logging of launched instances with username/email for uptake tracking
-- Install binaries "nexeld" (daemon) and "nexel" (shell)
 - Timeouts inside of build.conf and boot.conf
 
