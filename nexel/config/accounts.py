@@ -101,7 +101,7 @@ def __crawl():
                 boot.read(os.path.join(machine_path, 'boot.conf'))
                 vm_snapshot_id = boot.get('vm', 'snapshot-id')
                 vm_flavor_id = boot.get('vm', 'flavor-id')
-                vm_cell_hint = build.get('vm', 'cell-hint')
+                vm_cell_hint = boot.get('vm', 'cell-hint')
                 vm_cloud_init = boot.get('vm', 'cloud-init')
                 datamounts_datamount = boot.get('datamounts', 'datamount')
                 if not machine_name in m[account_name]['machines']:
