@@ -378,6 +378,9 @@ class LaunchProcess(object):
                                         'nexel-username': self._username,
                                         'nexel-password': self._password},
                            'key_name': self._key_name, }}
+        if mach['cell_hint'].strip() != "":
+            body['os:scheduler_hints'] = {'cell': mach['cell_hint']}
+
 
         def callback(resp):
             """
