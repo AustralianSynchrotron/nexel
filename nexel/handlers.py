@@ -243,7 +243,8 @@ class GetInstanceInfo(NexelRequestHandler):
                'server_id': '',
                'status': lp.status(),
                'ip_address': ipAddr,
-               'error_code': 0}
+               'error_code': 0,
+               'server_ready' : lp.server_ready()}
         err = lp.error_code()
         if err is not None:
             out['error_code'] = err
