@@ -244,12 +244,13 @@ class GetInstanceInfo(NexelRequestHandler):
                'status': lp.status(),
                'ip_address': ipAddr,
                'error_code': 0,
-               'server_ready' : lp.server_ready()}
+               'server_ready' : False}
         err = lp.error_code()
         if err is not None:
             out['error_code'] = err
         else:
-            if lp.server_ready():
+            out['server_ready'] = lp.server_ready()
+            if lp.server_id() is not None:
                 out['server_id'] = lp.server_id()
         self.write({'output': out})
 
