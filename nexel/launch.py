@@ -337,7 +337,10 @@ class LaunchProcess(object):
             sshfsUser = self._username
         else:
             sshfsUser = '"%s"' % self._email
-        sshfs_domain = Datamounts()[self._datamount]['server']['domain']
+        if self._datamount is None:
+            sshfs_domain = ""
+        else:
+            sshfs_domain = Datamounts()[self._datamount]['server']['domain']
 
         # get Nexel authentication and machine data
         auth = Accounts()[self._acc_name]['auth']

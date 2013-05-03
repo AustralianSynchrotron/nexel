@@ -103,7 +103,10 @@ def __crawl():
                 vm_flavor_id = boot.get('vm', 'flavor-id')
                 vm_cell_hint = boot.get('vm', 'cell-hint')
                 vm_cloud_init = boot.get('vm', 'cloud-init')
-                datamounts_datamount = boot.get('datamounts', 'datamount')
+                try:
+                    datamounts_datamount = boot.get('datamounts', 'datamount')
+                except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
+                    datamounts_datamount = None
                 if not machine_name in m[account_name]['machines']:
                     m[account_name]['machines'][machine_name] = {}
                 m[account_name]['machines'][machine_name]['boot'] = \
