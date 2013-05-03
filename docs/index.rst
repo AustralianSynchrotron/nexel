@@ -22,7 +22,7 @@ Australian Synchrotron.
 - Written in Python
 - BSD 3-clause license
 - Runs in Linux
-- Supports multi-tennanting
+- Supports multi-tenanting
 
 Contents:
 
