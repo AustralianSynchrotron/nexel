@@ -2,6 +2,7 @@ import argparse
 import json
 import requests
 import sys
+import nexel
 
 # TODO: where should these settings come from? (environment variable?)
 SERVER = 'http://localhost'
@@ -17,6 +18,10 @@ PORT = '8888'
 parser = argparse.ArgumentParser(prog=sys.argv[0],
                                  description='Nexel Shell: Build and launch self-managed OpenStack instances for multiple tenants.')
 subparsers = parser.add_subparsers(help='commands')
+
+# "nexel version"
+parser.add_argument('-v', '--version', action='version', version='Nexel {}'.format(nexel.__version__),
+                    help = 'Display Nexel version')
 
 # "nexel list-accounts"
 list_accounts_parser = subparsers.add_parser('list-accounts',
