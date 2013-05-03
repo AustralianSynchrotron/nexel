@@ -61,13 +61,3 @@ Some examples pulled from the docs:
 
    Launch an instance from the snapshot of a specified machine (TODO: json body).
 
-
-
-
-
-The :http:method:`get-root` contains all of the API.
-
-.. http:response:: Foobar object
-
-A :http:response:`foobar-object` is returned when you foo the bar.
-

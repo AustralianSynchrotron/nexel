@@ -4,8 +4,6 @@ from distutils.core import setup
 
 
 exec(open('nexel/version.py').read())
-with open('README.md', 'r') as f:
-    long_description = f.read()
 
 with open('README.md', 'r') as f:
     long_description = f.read()
