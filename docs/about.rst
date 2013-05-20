@@ -4,6 +4,11 @@
 About Nexel
 ***********
 
+Nexel is written by
+
+Jarrod Sinclair, VPAC/VeRSI
+(jsinclair@vpac.org)
+
 Recognition of NeCTAR funding:
 The `Australian Synchrotron <http://www.synchrotron.org.au>`_ is proud to be in partnership with the National eResearch Collaboration Tools and Resources (`NeCTAR <http://nectar.org.au/>`_) project to develop eResearch Tools for the synchrotron research community. This will enable our scientific users to have instant access to the results of data during the course of their experiment which will facilitate better decision making and also provide the opportunity for ongoing data analysis via remote access.
 

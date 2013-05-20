@@ -1,12 +1,18 @@
 Nexel
 =====
 
-Python based RESTful web-service to create and launch remote virtual
-machine sessions using the Nectar cloud, connecting to data housed at the
-Australian Synchrotron
+A lightweight management tool for configuring and deploying virtual machines on OpenStack clouds.
+Nexel includes a RESTful web-service and a simple commandline shell. Nexel was developed to create and launch remote virtual
+machine sessions on the NeCTAR OpenStack cloud, and connect the instances to data housed at the
+Australian Synchrotron.
 
 Jarrod Sinclair, VPAC/VeRSI
 (jsinclair@vpac.org)
+
+- Written in Python
+- BSD 3-clause license
+- Runs in Linux
+- Supports multi-tennanting
 
 Usage:
 
@@ -26,9 +32,6 @@ Required Python packages:
 - FormEncode 1.2.6+ (http://www.formencode.org/)
 - Requests 1.0.2+ (http://www.python-requests.org/)
 - Jinja2 2.6+ (http://jinja.pocoo.org/)
-
-Optional Python packages:
-
 - Pyinotify 0.9.4+ (https://github.com/seb-m/pyinotify)
 
 Installation
@@ -50,5 +53,3 @@ On Ubuntu 12.10 (as user):
 TODO:
 
 - Logging of launched instances with username/email for uptake tracking
-- Timeouts inside of build.conf and boot.conf
-

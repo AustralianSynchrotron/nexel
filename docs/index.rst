@@ -6,14 +6,34 @@
 Welcome to Nexel's documentation!
 =================================
 
+.. image:: images/NexelLogo.svg
+   :target: http://github.com/AustralianSynchrotron/nexel
+   :alt: Nexel logo
+   :width: 200px
+   :align: left
+
+
+A lightweight management tool for configuring and deploying virtual machines on OpenStack clouds.
+Nexel includes a RESTful web-service and a simple commandline shell. Nexel was developed to create and launch remote virtual
+machine sessions on the NeCTAR OpenStack cloud, and connect the instances to data housed at the
+Australian Synchrotron.
+
+
+- Written in Python
+- BSD 3-clause license
+- Runs in Linux
+- Supports multi-tenanting
+
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
+   usage
    restful
    flow
    about
+
 
 Indices and tables
 ==================

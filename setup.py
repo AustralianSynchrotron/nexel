@@ -2,13 +2,16 @@ from __future__ import with_statement
 from distutils.core import setup
 
 
+
+exec(open('nexel/version.py').read())
+
 with open('README.md', 'r') as f:
     long_description = f.read()
 
 
 setup(
     name='Nexel',
-    version='0.1',
+    version=__version__,
     description='RESTful web-service to create and launch remote VM sessions using the OpenStack-based NeCTAR cloud',
     long_description=long_description,
     url='https://github.com/AustralianSynchrotron/nexel',
