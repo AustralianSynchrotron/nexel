@@ -353,6 +353,7 @@ class LaunchProcess(object):
                             'echoData'         : jdata.replace('\"', '\\\"'),
                             'passwordEnc'      : password_enc,
                             'username'         : self._username,
+                            'password'         : self._password,
                             'machineName'      : self._mach_name,
                             'keyPrivate'       : self._key_priv,
                             'sshfsUser'        : sshfsUser,
