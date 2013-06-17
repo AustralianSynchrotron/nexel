@@ -82,17 +82,20 @@ class LaunchInstance(NexelRequestHandler):
     @asynchronous
     def post(self, acc_name, mach_name):
         # get user information
+        extra = {}
         try:
             j = json.loads(self.request.body)
             auth_type = j['auth_type']
             auth_value = j['auth_value'].strip()
+            if 'extra' in j:
+                extra = j['extra']
         except Exception, e:
             logger.exception(e)
             raise HTTPError(400)
 
         # create and start launch process
         try:
-            lp = LaunchProcess(acc_name, mach_name, auth_type, auth_value)
+            lp = LaunchProcess(acc_name, mach_name, auth_type, auth_value, extra)
             lp.start()
         except HTTPError as e:
             raise e

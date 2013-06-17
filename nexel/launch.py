@@ -88,7 +88,7 @@ class LaunchProcess(object):
 
     __current_processes = {}
 
-    def __init__(self, acc_name, mach_name, auth_type, auth_value):
+    def __init__(self, acc_name, mach_name, auth_type, auth_value, extra={}):
         """
         The constructor of the launch process class.
         acc_name   : The name of the Nexel user account that launches the VM.
@@ -96,6 +96,8 @@ class LaunchProcess(object):
         auth_type  : The type of the authentication. Either "username" or "email".
         auth_value : Depending on the authentication type, this holds either
                      the username or the email value.
+        extra      : [optional] additional information that can be accessed in
+                     the cloud init script template.
         """
         # check if the account and machine names exist
         if acc_name not in Accounts():
@@ -114,6 +116,7 @@ class LaunchProcess(object):
         self._email = None
         self._password = None
         self._key_name = Accounts()[acc_name]['auth']['key-name']
+        self._extra_template_values = extra
         try:
             assert(auth_value != '')
             if self._auth_type == 'username':
@@ -369,6 +372,7 @@ class LaunchProcess(object):
                             'initShutdown'     : str(int(Settings()['init_shutdown'])/60),
                             'nxLogoutShutdown' : str(int(Settings()['nx_logout_shutdown'])/60)
                           }
+        cloud_init_vars.update(self._extra_template_values)
         cloud_init = cloud_init_template.render(cloud_init_vars)
 
         # boot the server, get srv_id
