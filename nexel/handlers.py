@@ -1,6 +1,7 @@
 import json
 import logging
 from tornado.web import RequestHandler, HTTPError, asynchronous
+from raven.contrib.tornado import SentryMixin
 
 from nexel.config.accounts import Accounts
 from nexel.launch import LaunchProcess
@@ -13,7 +14,7 @@ import OpenStackRequest, make_request_async, http_success
 logger = logging.getLogger(__name__)
 
 
-class NexelRequestHandler(RequestHandler):
+class NexelRequestHandler(SentryMixin, RequestHandler):
     def set_default_headers(self):
         self.set_header('Content-Type', 'application/json; charset=UTF-8')
 

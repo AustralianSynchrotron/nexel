@@ -51,6 +51,9 @@ def read(conf_path):
     d['nx_logout_shutdown']   = conf.get('time', 'nx-logout-shutdown')
     d['launch_timeout']       = conf.get('time', 'launch-timeout')
 
+    # [logging]
+    d['sentry-api-key'] = conf.get('logging', 'sentry-api-key')
+
     # update singleton
     Settings().clear()
     Settings().update(d)

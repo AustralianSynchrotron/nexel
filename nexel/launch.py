@@ -236,6 +236,7 @@ class LaunchProcess(object):
             - adding the _continue() method to Tornado's IO loop
         """
         logger.debug('Adding the _timeout() and _continue() methods to Tornado\'s IO loop')
+        logger.info('Launching instance <%s> for user <%s>'%(self._launch_id, self._username))
         self._launch_timeout_handle = self.io_loop().add_timeout(datetime.timedelta(seconds=int(Settings()['launch_timeout'])), self._timeout)
         self.io_loop().add_callback(self._continue)
 
@@ -286,7 +287,7 @@ class LaunchProcess(object):
         # Stop the timeout countdown
         self.io_loop().remove_timeout(self._launch_timeout_handle)
 
-        logger.debug('Done launch for %s' % self._launch_id)
+        logger.info('Done launch of instance <%s> for user <%s>'%(self._launch_id, self._username))
         logger.debug('Instance is ready')
 
 

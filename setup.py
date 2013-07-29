@@ -20,6 +20,7 @@ setup(
     packages=['nexel', 'nexel/config', 'nexel/util'],
     install_requires=[
         'argparse',
+        'raven',
         'tornado >= 2.4.1',
         'paramiko >= 1.9.0',
         'pycrypto >= 2.5',
