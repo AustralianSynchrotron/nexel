@@ -17,7 +17,7 @@ BUILD_DELAY = datetime.timedelta(seconds=30)
 SNAPSHOT_DELAY = datetime.timedelta(seconds=30)
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 def random_chars(num_chars):
     return ''.join([random.choice(CHARS) for _ in range(num_chars)])

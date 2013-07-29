@@ -40,7 +40,7 @@ parse_email = formencode.validators.Email.to_python
 
 # the logging system
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 #-------------------------------------
@@ -246,7 +246,7 @@ class LaunchProcess(object):
         This method is called when the launch process exceeds the specified time threshold.
         It stops the launch and terminates the instance.
         """
-        logger.debug('Timeout of the launch process reached. Stopping the process.')
+        logger.error('Timeout of the launch process <%s> reached. Stopping the process.'%self._launch_id)
         self._cancel_launch = True
 
         def callback(resp):
@@ -288,7 +288,6 @@ class LaunchProcess(object):
         self.io_loop().remove_timeout(self._launch_timeout_handle)
 
         logger.info('Done launch of instance <%s> for user <%s>'%(self._launch_id, self._username))
-        logger.debug('Instance is ready')
 
 
     def _do_keygen(self):
