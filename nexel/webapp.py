@@ -1,3 +1,4 @@
+import logging
 from raven import Client
 from raven.handlers.logging import SentryHandler
 from raven.conf import setup_logging
@@ -8,7 +9,6 @@ DEBUG = False
 logging.getLogger().setLevel(logging.INFO)
 
 def install():
-    import logging
     from nexel.config.settings import Settings
     from nexel.handlers import dispatcher
     from tornado import version_info
