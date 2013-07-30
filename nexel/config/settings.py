@@ -34,6 +34,7 @@ def read(conf_path):
     d['server_port'] = int(conf.get('server', 'port'))
     s = conf.get('server', 'restrict-to')
     d['server_restrict_to'] = s.replace(',', ' ').replace(';', ' ').split()
+    d['debug'] = conf.getboolean('server', 'debug')
 
     # [os]
     d['os_auth_url'] = conf.get('os', 'auth-url')

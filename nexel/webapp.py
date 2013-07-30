@@ -4,9 +4,18 @@ from raven.handlers.logging import SentryHandler
 from raven.conf import setup_logging
 from raven.contrib.tornado import AsyncSentryClient
 
-# log level settings
-DEBUG = False
-logging.getLogger().setLevel(logging.INFO)
+
+def webapp_log(handler):
+    if handler.get_status() < 400:
+        log_method = logging.debug
+    elif handler.get_status() < 500:
+        log_method = logging.warning
+    else:
+        log_method = logging.error
+    request_time = 1000.0 * handler.request.request_time()
+    log_method("%d %s %.2fms", handler.get_status(),
+               handler._request_summary(), request_time)
+
 
 def install():
     from nexel.config.settings import Settings
@@ -19,9 +28,16 @@ def install():
         import tornado.options
         tornado.options.enable_pretty_logging()
 
+    # global logging level
+    if Settings()['debug']:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
+
     # webapp
     import tornado.web
-    web_app = tornado.web.Application(dispatcher, debug=DEBUG)
+    web_app = tornado.web.Application(dispatcher, debug=Settings()['debug'],
+                                      log_function=webapp_log)
     web_app.listen(Settings()['server_port'])
 
     # sentry logging

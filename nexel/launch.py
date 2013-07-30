@@ -40,7 +40,6 @@ parse_email = formencode.validators.Email.to_python
 
 # the logging system
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 #-------------------------------------
