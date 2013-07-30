@@ -3,8 +3,9 @@ from raven.handlers.logging import SentryHandler
 from raven.conf import setup_logging
 from raven.contrib.tornado import AsyncSentryClient
 
+# log level settings
 DEBUG = False
-
+logging.getLogger().setLevel(logging.INFO)
 
 def install():
     import logging
@@ -23,10 +24,9 @@ def install():
     web_app = tornado.web.Application(dispatcher, debug=DEBUG)
     web_app.listen(Settings()['server_port'])
 
-    # logging
+    # sentry logging
     if Settings()['sentry-api-key']:
         web_app.sentry_client = AsyncSentryClient(Settings()['sentry-api-key'])
         setup_logging(SentryHandler(Client(Settings()['sentry-api-key'])))
-    logging.getLogger().setLevel(logging.INFO)
 
     return web_app
