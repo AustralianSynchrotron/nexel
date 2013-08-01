@@ -84,10 +84,13 @@ class LaunchInstance(NexelRequestHandler):
     def post(self, acc_name, mach_name):
         # get user information
         extra = {}
+        cell_hint = ""
         try:
             j = json.loads(self.request.body)
             auth_type = j['auth_type']
             auth_value = j['auth_value'].strip()
+            if 'cell_hint' in j:
+                cell_hint = j['cell_hint']
             if 'extra' in j:
                 extra = j['extra']
         except Exception, e:
@@ -96,7 +99,7 @@ class LaunchInstance(NexelRequestHandler):
 
         # create and start launch process
         try:
-            lp = LaunchProcess(acc_name, mach_name, auth_type, auth_value, extra)
+            lp = LaunchProcess(acc_name, mach_name, auth_type, auth_value, cell_hint, extra)
             lp.start()
         except HTTPError as e:
             raise e

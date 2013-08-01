@@ -87,7 +87,7 @@ class LaunchProcess(object):
 
     __current_processes = {}
 
-    def __init__(self, acc_name, mach_name, auth_type, auth_value, extra={}):
+    def __init__(self, acc_name, mach_name, auth_type, auth_value, cell_hint="", extra={}):
         """
         The constructor of the launch process class.
         acc_name   : The name of the Nexel user account that launches the VM.
@@ -95,6 +95,8 @@ class LaunchProcess(object):
         auth_type  : The type of the authentication. Either "username" or "email".
         auth_value : Depending on the authentication type, this holds either
                      the username or the email value.
+        cell_hint  : [optional] forces the use of a specific cloud cell. If none is given,
+                     the cell_hint from the settings file is used.
         extra      : [optional] additional information that can be accessed in
                      the cloud init script template.
         """
@@ -115,6 +117,10 @@ class LaunchProcess(object):
         self._email = None
         self._password = None
         self._key_name = Accounts()[acc_name]['auth']['key-name']
+        if cell_hint:
+            self._cell_hint = cell_hint
+        else:
+            self._cell_hint = Accounts()[acc_name]['machines'][mach_name]['boot']['cell_hint']
         self._extra_template_values = extra
         try:
             assert(auth_value != '')
@@ -385,8 +391,8 @@ class LaunchProcess(object):
                                         'nexel-username': self._username,
                                         'nexel-password': self._password},
                            'key_name': self._key_name, }}
-        if mach['cell_hint'].strip() != "":
-            body['os:scheduler_hints'] = {'cell': mach['cell_hint']}
+        if self._cell_hint:
+            body['os:scheduler_hints'] = {'cell': self._cell_hint}
 
 
         def callback(resp):
