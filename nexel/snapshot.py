@@ -5,16 +5,26 @@ import json
 import logging
 from nexel.config.accounts import Accounts
 from nexel.config.settings import Settings
+from nexel.config.datamounts import Datamounts
 import string
+from os.path import join
 from tornado.ioloop import IOLoop
 from nexel.util.openstack\
 import OpenStackRequest, make_request_async, http_success
+from jinja2 import Template
 import uuid
 import urllib
+import Crypto.Random
+import paramiko
+try:
+    from cStringIO import StringIO
+except:
+    from StringIO import StringIO
 
 CHARS = string.digits + string.letters
 BUILD_DELAY = datetime.timedelta(seconds=30)
 SNAPSHOT_DELAY = datetime.timedelta(seconds=30)
+RSA_BITS = 2048
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -39,7 +49,9 @@ class SnapshotProcess(object):
         self._created = datetime.datetime.now()
         self._acc_name = acc_name
         self._server_id = None
-        self._process = {'server_add': 0,
+        self._key_priv = None
+        self._process = {'reposkey_add': 0,
+                         'server_add': 0,
                          'server_ready': 0,
                          'snapshot_create': 0,
                          'snapshot_ready': 0,
@@ -82,7 +94,8 @@ class SnapshotProcess(object):
         return self._server_ready
 
     def completed(self):
-        if (self._process['server_add'] == 2 and
+        if (self._process['reposkey_add'] == 2 and
+            self._process['server_add'] == 2 and
             self._process['server_ready'] == 2 and
             self._process['snapshot_create'] == 2 and
             self._process['snapshot_ready'] == 2 and
@@ -101,32 +114,70 @@ class SnapshotProcess(object):
         self.io_loop().add_callback(self._continue)
 
     def _continue(self):
-        # 1. server_add
+        # 1. add instance key to software repository
+        if self._process['reposkey_add'] == 0:
+            return self._do_reposkey_add()
+
+        # 2. server_add
         if self._process['server_add'] == 0:
             return self._do_server_add()
 
-        # 2. server_ready
+        # 3. server_ready
         if self._process['server_ready'] == 0:
             return self._do_server_ready()
 
-        # 3. snapshot_create
+        # 4. snapshot_create
         if self._process['snapshot_create'] == 0:
             return self._do_snapshot_create()
 
-        # 4. snapshot_ready
+        # 5. snapshot_ready
         if self._process['snapshot_ready'] == 0:
             return self._do_snapshot_ready()
 
-        # 5. snapshot_save
+        # 6. snapshot_save
         if self._process['snapshot_save'] == 0:
             return self._do_snapshot_save()
 
-        # 6. server_kill
+        # 7. server_kill
         if self._process['server_kill'] == 0:
             return self._do_server_kill()
 
+    def _do_reposkey_add(self):
+        self._process['reposkey_add'] = 1
+        # TODO: make asynchronous, add hard coded values to the settings,
+        #       add try except blocks
+
+        # generate key
+        Crypto.Random.atfork()
+        key = paramiko.RSAKey.generate(RSA_BITS)
+        public_key = 'ssh-rsa %s' % key.get_base64()
+        private_key = StringIO()
+        key.write_private_key(private_key)
+        private_key.seek(0)
+        self._key_priv = private_key.read()
+
+        # add key to the nexel user
+        dataserver = Accounts()[self._acc_name]['machines'][self._mach_name]['boot']['datamount']
+        domain = Datamounts()[dataserver]['server']['domain']
+        login = Datamounts()[dataserver]['root']['username']
+        path_to_key = Datamounts()[dataserver]['root']['private_key']
+        client = paramiko.SSHClient()
+        client.load_host_keys(path_to_key)
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(domain, username=login)
+        keys = join('/home','nexel','.ssh','authorized_keys')
+        pubkey = public_key.strip().replace('\"', '\\\"')
+        command = '[ -e %s ] && echo "%s" >> %s || '\
+        '(echo "%s" > %s && chown`id -u %s`:`id -g %s` %s)' \
+        % (keys, pubkey, keys, pubkey, keys, "nexel", "nexel", keys)
+        _, stdout, stderr = client.exec_command(command)
+        client.close()
+        self._process['reposkey_add'] = 2
+        self._continue()
+
     def _do_server_add(self):
         self._process['server_add'] = 1
+        dataserver = Accounts()[self._acc_name]['machines'][self._mach_name]['boot']['datamount']
 
         # construct cloud-init script from build script
         cloud_init = self._settings['script']
@@ -166,6 +217,11 @@ class SnapshotProcess(object):
         cloud_init += 'python ~/nexel-ready.py\n'
         cloud_init += 'rm -rf ~/nexel-ready.py\n'
 
+        template = Template(cloud_init)
+        cloud_init_vars = { 'reposDomain' : Datamounts()[dataserver]['server']['domain'],
+                            'keyPrivate'  : self._key_priv
+                          }
+
         # boot the server, get srv_id
         # mach = self._settings
         body = {'server': {'name': self._mach_name,
@@ -173,7 +229,7 @@ class SnapshotProcess(object):
                            'flavorRef': self._settings['flavor_id'],
                            #'security_groups': [{'name': 'ssh'}],
                            #'key_name': 'Web-Keypair',
-                           'user_data': base64.b64encode(cloud_init),
+                           'user_data': base64.b64encode(template.render(cloud_init_vars)),
                            'metadata': {'nexel-type': 'snapshot',
                                         'nexel-ready': 'False'}}}
         def callback(resp):
